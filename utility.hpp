@@ -19,7 +19,7 @@ public:
 	Q_INVOKABLE static QString storage() { return m_storage; }
 	qreal dpi() const { return m_dpi; }
 	QQuickItem *root() const { return m_root; }
-	QFont font() const { return m_font; }
+	static QFont font() { return m_font; }
 	static void initialize(QQuickWindow *window);
 private:
 	static qreal m_p2d, m_d2p, m_dpi;

@@ -1,4 +1,7 @@
 #include "itemlistitem.hpp"
+#include <QQmlComponent>
+#include <QQmlContext>
+#include <QQmlEngine>
 #include <QQuickWindow>
 #include "utils.hpp"
 
@@ -8,25 +11,6 @@ struct ItemPos {
 	ItemListAttached *attached = nullptr;
 	qreal pos = 0.0;
 	bool transparent = false;
-};
-
-struct ListItem {
-	explicit ListItem(QObject *object = nullptr): m_object(object) {
-		if (!object)
-			return;
-		m_attached = qobject_cast<ItemListSeparator*>(object);
-		if (!m_attached) {
-			auto a = qmlAttachedPropertiesObject<ItemListItem>(object, false);
-			if (!a)
-				a = qmlAttachedPropertiesObject<ItemListItem>(object, true);
-			m_attached = static_cast<ItemListAttached*>(a);
-		}
-	}
-	QObject *object() const { return m_object; }
-	ItemListAttached *attached() const { return m_attached; }
-private:
-	QObject *m_object = nullptr;
-	ItemListAttached *m_attached = nullptr;
 };
 
 struct VerticalOrientation {
@@ -59,10 +43,10 @@ struct ItemListItem::Data {
 	ItemListItem *p = nullptr;
 	Qt::Orientation orientation = Qt::Vertical;
 	QList<ListItem> list;
-	ItemListAttached *pressed = nullptr;
+	ItemPos pressed;
 	ListItem headerItem, footerItem, headerSeparator, footerSeparator, separator;
 	QVector<ItemPos> rects;
-	int rectCount = 0, vtxCount = 0;
+	int rectCount = 0;
 	QColor originalColor;
 	qreal vpad = 0, hpad = 0, minimum = 0;
 	void connectAttached(ItemListAttached *attached) {
@@ -94,14 +78,14 @@ struct ItemListItem::Data {
 	}
 
 	void releaseMouse() {
-		if (pressed) {
-			pressed->setColor(originalColor);
-			pressed = nullptr;
+		if (pressed.attached && pressed.attached->isInteractive()) {
+			pressed.attached->setColor(originalColor);
+			pressed = ItemPos();
 		}
 	}
 	template<typename O>
 	void layout() {
-		rectCount = vtxCount = 0;
+		rectCount = 0;
 		minimum = 0;
 		if (list.isEmpty())
 			return;
@@ -140,8 +124,6 @@ struct ItemListItem::Data {
 		qreal pos = 0;
 		auto append = [&it, &pos, fill, this] (const ListItem &item) {
 			auto attached = item.attached();
-			if (attached->color().alpha())
-				++vtxCount;
 			const qreal total = pick(attached->thickness(), fill) + 2*O::padding(p, attached);
 			attached->fill(total);
 			const bool isItem = attached->isQmlItem();
@@ -178,21 +160,29 @@ struct ItemListItem::Data {
 	}
 	template<typename O>
 	void updateVertex(QSGGeometry *geometry) {
-		geometry->allocate(vtxCount*6);
-		auto v = geometry->vertexDataAsColoredPoint2D();
+		int size = 0;
 		for (int i=0; i<rectCount; ++i) {
-			const auto &item = rects[i];
-			if (item.attached->color().alpha())
-				v = fillColoredPointAsTriangle(v, O::vertexRect(p, item), item.attached->color());
+			if (rects[i].attached->color().alpha())
+				size += 6;
+		}
+		geometry->allocate(size);
+		if (size > 0) {
+			auto v = geometry->vertexDataAsColoredPoint2D();
+			for (int i=0; i<rectCount; ++i) {
+				const auto &item = rects[i];
+				if (item.attached->color().alpha()) {
+					v = fillColoredPointAsTriangle(v, O::vertexRect(p, item), item.attached->color());
+				}
+			}
 		}
 	}
 	template<typename O>
-	ItemListAttached *contains(const QPointF &pos) {
+	ItemPos contains(const QPointF &pos) {
 		for (int i=0; i<rectCount; ++i) {
 			if (O::vertexRect(p, rects[i]).contains(pos))
-				return rects[i].attached;
+				return rects[i];
 		}
-		return nullptr;
+		return ItemPos();
 	}
 };
 
@@ -238,6 +228,8 @@ void ItemListItem::append(QObject *obj) {
 }
 
 void ItemListItem::clear() {
+	for (int i=0; i<d->list.size(); ++i)
+		disconnect(d->list[i].attached(), nullptr, this, nullptr);
 	d->list.clear();
 }
 
@@ -313,14 +305,23 @@ void ItemListItem::mousePressEvent(QMouseEvent *event) {
 		d->pressed = d->contains<HorizontalOrientation>(event->localPos());
 	else
 		d->pressed = d->contains<VerticalOrientation>(event->localPos());
-	if (d->pressed) {
-		d->originalColor = d->pressed->color();
-		d->pressed->setColor(Qt::blue);
+	if (d->pressed.attached && d->pressed.attached->isInteractive()) {
+		d->originalColor = d->pressed.attached->color();
+		d->pressed.attached->setColor(Qt::blue);
 	}
 }
 
 void ItemListItem::mouseReleaseEvent(QMouseEvent *event) {
 	TextureItem::mouseReleaseEvent(event);
+	if (d->pressed.attached && d->pressed.attached->isInteractive()) {
+		QRectF rect;
+		if (d->orientation == Qt::Horizontal)
+			rect = HorizontalOrientation::vertexRect(this, d->pressed);
+		else
+			rect = VerticalOrientation::vertexRect(this, d->pressed);
+		if (rect.contains(event->localPos()))
+			emit d->pressed.attached->clicked();
+	}
 	d->releaseMouse();
 }
 
@@ -403,4 +404,8 @@ void ItemListItem::setFooterSeparator(ItemListSeparator *sep) {
 
 qreal ItemListItem::minimumLength() const {
 	return d->minimum;
+}
+
+const QList<ItemListItem::ListItem> &ItemListItem::itemList() const {
+	return d->list;
 }

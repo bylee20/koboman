@@ -1,4 +1,5 @@
 #include <QGuiApplication>
+#include <QQmlEngine>
 #include <QQmlContext>
 #include "qtquick2applicationviewer.h"
 #include "barcodescanner.hpp"
@@ -8,6 +9,7 @@
 #include "items/toplevelitem.hpp"
 #include "items/toplevelcontainer.hpp"
 #include "items/itemlistitem.hpp"
+#include "items/textlistitem.hpp"
 
 template<typename T>
 static QObject *singletonProvider(QQmlEngine*, QJSEngine*) { return new T; }
@@ -18,15 +20,19 @@ int main(int argc, char *argv[]) {
 	qmlRegisterType<ItemListAttached>();
 	qmlRegisterType<TopLevelItem>("net.xylosper.Mobile", 1, 0, "TopLevel");
 	qmlRegisterType<ItemListItem>("net.xylosper.Mobile", 1, 0, "ItemList");
+	qmlRegisterType<TextListItem>("net.xylosper.Mobile", 1, 0, "TextList");
 	qmlRegisterType<ItemListSeparator>("net.xylosper.Mobile", 1, 0, "ItemListSeparator");
 	qmlRegisterUncreatableType<TopLevelContainer>("net.xylosper.Mobile", 1, 0, "TopLevelContainer", "wrong");
 	qmlRegisterUncreatableType<TopLevelShadow>("net.xylosper.Mobile", 1, 0, "TopLevelContainerShadow", "wrong");
 	qmlRegisterSingletonType<Utility>("KoboMan", 1, 0, "Utility", singletonProvider<Utility>);
+	qmlRegisterSingletonType<Utility>("net.xylosper.Mobile", 1, 0, "Utility", singletonProvider<Utility>);
 
 	qmlRegisterType<BarcodeObject>("KoboMan", 1, 0, "Barcode");
 	qmlRegisterType<BarcodeScanner>("KoboMan", 1, 0, "BarcodeScanner");
 
 	QtQuick2ApplicationViewer viewer;
+	viewer.addImportPath(QStringLiteral("imports"));
+	qDebug() << viewer.engine()->importPathList();
 	Utility::initialize(&viewer);
 	BookListModel bookList;
 	viewer.rootContext()->setContextProperty("BookList", &bookList);

@@ -18,18 +18,33 @@ Android.App {
 
 	Mobile.TopLevel {
 		container.item: Mobile.ItemList {
+			orientation: Qt.Horizontal
 			width: 200
-			height: minimumLength
-			list: [
-				Rectangle {
-					Mobile.ItemList.thickness: 100
-				}
+			height: 200
+			separator {
+				color: "#575D62"
+				thickness: Utility.dpToPx(1)
+			}
+//			list: [
+//				Text {
+//					Mobile.ItemList.thickness: 100
+//					Mobile.ItemList.interactive: true
+//					Mobile.ItemList.onClicked: text = "clicked"
+//				},
+//				Text {
+//					Mobile.ItemList.thickness: 100
+//					Mobile.ItemList.interactive: true
+//				}
 
-			]
+//			]
 
 		}
 		container.position: Qt.point((width-container.item.width)*0.5, (height-container.item.height)*0.5)
+		Mobile.ButtonBox {
+
+		}
 	}
+
 
 //	Mobile.TopLevel {
 //		id: top
@@ -226,7 +241,7 @@ Android.App {
 					headerItem: Text {
 						text: "header"
 						Mobile.ItemList.thickness: 100
-
+						Mobile.ItemList.interactive: true
 					}
 					headerSeparator: Mobile.ItemListSeparator {
 						color: "blue"
@@ -236,7 +251,7 @@ Android.App {
 						color: "green"
 					}
 
-					list: [
+					items: [
 						Text {
 							color:"green"
 							Mobile.ItemList.thickness: -1

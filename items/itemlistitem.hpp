@@ -12,6 +12,7 @@ class ItemListAttached : public QObject {
 	Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged FINAL)
 	Q_PROPERTY(qreal verticalPadding READ verticalPadding WRITE setVerticalPadding NOTIFY verticalPaddingChanged)
 	Q_PROPERTY(qreal horizontalPadding READ horizontalPadding WRITE setHorizontalPadding NOTIFY horizontalPaddingChanged)
+	Q_PROPERTY(bool interactive MEMBER m_interactive NOTIFY interactiveChanged FINAL)
 public:
 	ItemListAttached(QObject *parent = nullptr): QObject(parent) {}
 	ItemListAttached(bool separator, QObject *parent = nullptr)
@@ -33,16 +34,20 @@ public:
 	qreal horizontalPadding() const { return m_hpad; }
 	void setVerticalPadding(qreal pad) { if (_Change(m_vpad, pad)) emit verticalPaddingChanged(); }
 	void setHorizontalPadding(qreal pad) { if (_Change(m_hpad, pad)) emit horizontalPaddingChanged(); }
+	bool isInteractive() const { return m_interactive; }
 signals:
 	void thicknessChanged();
 	void separatorChanged();
 	void colorChanged();
 	void verticalPaddingChanged();
 	void horizontalPaddingChanged();
+	void clicked();
+	void interactiveChanged();
 private:
 	qreal m_thickness = -1, m_filling = -1, m_vpad = -1, m_hpad = -1;
 	bool m_separator = false;
 	QColor m_color = Qt::transparent;
+	bool m_interactive = false;
 };
 
 class ItemListSeparator : public ItemListAttached {
@@ -53,7 +58,7 @@ public:
 
 class ItemListItem : public TextureItem {
 	Q_OBJECT
-	Q_PROPERTY(QQmlListProperty<QObject> list READ list NOTIFY listChanged FINAL)
+	Q_PROPERTY(QQmlListProperty<QObject> items READ list NOTIFY listChanged)
 	Q_PROPERTY(ItemListSeparator *separator READ separator CONSTANT FINAL)
 	Q_PROPERTY(qreal verticalPadding READ verticalPadding WRITE setVerticalPadding NOTIFY verticalPaddingChanged FINAL)
 	Q_PROPERTY(qreal horizontalPadding READ horizontalPadding WRITE setHorizontalPadding NOTIFY horizontalPaddingChanged FINAL)
@@ -97,9 +102,28 @@ signals:
 	void footerItemChanged();
 	void headerSeparatorChanged();
 	void footerSeparatorChanged();
-private slots:
-	void handleItemColorChanged();
+protected:
+	struct ListItem {
+		explicit ListItem(QObject *object = nullptr): m_object(object) {
+			if (!object)
+				return;
+			m_attached = qobject_cast<ItemListSeparator*>(object);
+			if (!m_attached) {
+				auto a = qmlAttachedPropertiesObject<ItemListItem>(object, false);
+				if (!a)
+					a = qmlAttachedPropertiesObject<ItemListItem>(object, true);
+				m_attached = static_cast<ItemListAttached*>(a);
+			}
+		}
+		QObject *object() const { return m_object; }
+		ItemListAttached *attached() const { return m_attached; }
+	private:
+		QObject *m_object = nullptr;
+		ItemListAttached *m_attached = nullptr;
+	};
+	const QList<ListItem> &itemList() const;
 private:
+	void handleItemColorChanged();
 	void updatePolish();
 	void geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry) override;
 	QByteArray fragmentShader() const;
