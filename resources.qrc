@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icon/ic_action_flash_off.png</file>
+        <file>icon/ic_action_flash_on.png</file>
+        <file>icon/ic_action_overflow.png</file>
+        <file>icon/ic_action_camera.png</file>
+    </qresource>
+</RCC>
