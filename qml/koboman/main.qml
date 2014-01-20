@@ -16,32 +16,14 @@ Android.App {
 	height: 640
 	focus: true
 
-	Mobile.TopLevel {
-		container.item: Mobile.ItemList {
-			orientation: Qt.Horizontal
-			width: 200
-			height: 200
-			separator {
-				color: "#575D62"
-				thickness: Utility.dpToPx(1)
-			}
-//			list: [
-//				Text {
-//					Mobile.ItemList.thickness: 100
-//					Mobile.ItemList.interactive: true
-//					Mobile.ItemList.onClicked: text = "clicked"
-//				},
-//				Text {
-//					Mobile.ItemList.thickness: 100
-//					Mobile.ItemList.interactive: true
-//				}
-
-//			]
-
-		}
-		container.position: Qt.point((width-container.item.width)*0.5, (height-container.item.height)*0.5)
-		Mobile.ButtonBox {
-
+	Mobile.MessageBox {
+		title: "Title"
+		text: "This is a message box to test long text with wrapping mode WrapAtWordBoundaryOrAnywhere"
+		buttons: [ Mobile.ButtonBox.Cancel, Mobile.ButtonBox.Ok ]
+		contentHeight: minimumHeight
+		contentWidth: 300
+		onReturned: {
+			console.log(Mobile.ButtonBox.buttonText(button))
 		}
 	}
 
@@ -61,21 +43,6 @@ Android.App {
 
 //				scale: 1.0
 //			}
-//	}
-
-//	BorderImage {
-//		id: shadowImage
-//		property real gap: Utility.dpToPx(7)
-//		width: (box.width + gap*2)/scale
-//		height: (box.height + gap*2)/scale
-//		transformOrigin: Item.Center
-//		anchors.centerIn: box
-//		anchors.verticalCenterOffset: Utility.dpToPx(1)
-//		border { left: 32; top: 32; right: 32; bottom: 32 }
-//		horizontalTileMode: BorderImage.Stretch
-//		verticalTileMode: BorderImage.Stretch
-//		scale: (Utility.dpi/160)/2
-//		source: "rectshadow.png"
 //	}
 
 	Component.onCompleted: {
@@ -250,6 +217,7 @@ Android.App {
 					separator {
 						color: "green"
 					}
+					onClicked: console.log(item.text, item.Mobile.ItemList.index)
 
 					items: [
 						Text {

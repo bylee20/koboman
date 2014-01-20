@@ -8,7 +8,8 @@ struct TextListItem::Data {
 	QList<QQuickItem*> textItems;
 	QStringList texts;
 	QFont font;
-	Qt::AlignmentFlag valign = Qt::AlignVCenter, haligh = Qt::AlignHCenter;
+	Qt::AlignmentFlag valign = Qt::AlignVCenter, haligh = Qt::AlignLeft;
+	bool interactive = false;
 	template<typename T>
 	void setTextProperty(const char *name, const T &t) {
 		for (auto item : textItems)
@@ -32,21 +33,15 @@ QStringList TextListItem::texts() const {
 	return d->texts;
 }
 
-QQmlListProperty<QObject> TextListItem::items() const {
-	static auto count = [] (QQmlListProperty<QObject> *list) {
-		return static_cast<TextListItem*>(list->object)->d->texts.size();
-	};
-	static auto at = [] (QQmlListProperty<QObject> *list, int index) -> QObject * {
-		return static_cast<TextListItem*>(list->object)->d->textItems.at(index);
-	};
-	return QQmlListProperty<QObject>(const_cast<TextListItem*>(this), nullptr, count, at);
+QByteArray TextListItem::sourceCode() const {
+	return "import QtQuick 2.2\nText { }";
 }
 
 void TextListItem::setTexts(const QStringList &texts) {
 	d->texts = texts;
 	if (!d->component) {
 		d->component = new QQmlComponent(QQmlEngine::contextForObject(this)->engine());
-		d->component->setData("import QtQuick 2.2\nText { }", QUrl());
+		d->component->setData(sourceCode(), QUrl());
 	}
 	clear();
 	if (d->textItems.size() < texts.size()) {
@@ -56,6 +51,7 @@ void TextListItem::setTexts(const QStringList &texts) {
 			item->setProperty("verticalAlignment", d->valign);
 			item->setProperty("horizontalAlignment", d->haligh);
 			item->setProperty("font", d->font);
+			attached(item, true)->setInteractive(true);
 			d->textItems.append(item);
 		}
 	}
@@ -96,5 +92,17 @@ void TextListItem::setHorizontalAlignment(Qt::AlignmentFlag alignment) {
 	if (_Change(d->haligh, alignment)) {
 		d->setTextProperty("horizontalAlignment", alignment);
 		emit horizontalAlignmentChanged();
+	}
+}
+
+bool TextListItem::isInteractive() const {
+	return d->interactive;
+}
+
+void TextListItem::setInteractive(bool interactive) {
+	if (_Change(d->interactive, interactive)) {
+		for (auto item : d->textItems)
+			attached(item, false)->setInteractive(interactive);
+		emit interactiveChanged();
 	}
 }

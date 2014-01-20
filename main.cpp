@@ -10,6 +10,7 @@
 #include "items/toplevelcontainer.hpp"
 #include "items/itemlistitem.hpp"
 #include "items/textlistitem.hpp"
+#include "items/buttonboxitem.hpp"
 
 template<typename T>
 static QObject *singletonProvider(QQmlEngine*, QJSEngine*) { return new T; }
@@ -21,6 +22,7 @@ int main(int argc, char *argv[]) {
 	qmlRegisterType<TopLevelItem>("net.xylosper.Mobile", 1, 0, "TopLevel");
 	qmlRegisterType<ItemListItem>("net.xylosper.Mobile", 1, 0, "ItemList");
 	qmlRegisterType<TextListItem>("net.xylosper.Mobile", 1, 0, "TextList");
+	qmlRegisterType<ButtonBoxItem>("net.xylosper.Mobile", 1, 0, "ButtonBox");
 	qmlRegisterType<ItemListSeparator>("net.xylosper.Mobile", 1, 0, "ItemListSeparator");
 	qmlRegisterUncreatableType<TopLevelContainer>("net.xylosper.Mobile", 1, 0, "TopLevelContainer", "wrong");
 	qmlRegisterUncreatableType<TopLevelShadow>("net.xylosper.Mobile", 1, 0, "TopLevelContainerShadow", "wrong");
@@ -31,7 +33,11 @@ int main(int argc, char *argv[]) {
 	qmlRegisterType<BarcodeScanner>("KoboMan", 1, 0, "BarcodeScanner");
 
 	QtQuick2ApplicationViewer viewer;
+#if defined(Q_OS_ANDROID) && !defined(Q_OS_ANDROID_NO_SDK)
+	viewer.addImportPath(QStringLiteral("assets:/imports"));
+#else
 	viewer.addImportPath(QStringLiteral("imports"));
+#endif
 	qDebug() << viewer.engine()->importPathList();
 	Utility::initialize(&viewer);
 	BookListModel bookList;

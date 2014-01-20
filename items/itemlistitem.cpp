@@ -6,11 +6,12 @@
 #include "utils.hpp"
 
 static inline qreal pick(qreal v, qreal fallback) { return v < 0 ? fallback : v; }
+template<typename T>
+static inline T *pick(T *v, T *fallback) { return v ? v : fallback; }
 
 struct ItemPos {
 	ItemListAttached *attached = nullptr;
 	qreal pos = 0.0;
-	bool transparent = false;
 };
 
 struct VerticalOrientation {
@@ -41,32 +42,58 @@ struct HorizontalOrientation {
 
 struct ItemListItem::Data {
 	ItemListItem *p = nullptr;
+	QColor highlight = Qt::blue;
 	Qt::Orientation orientation = Qt::Vertical;
-	QList<ListItem> list;
+	QList<ItemListAttached*> list;
 	ItemPos pressed;
-	ListItem headerItem, footerItem, headerSeparator, footerSeparator, separator;
+	ItemListAttached *headerAttached = nullptr, *footerAttached = nullptr;
+	ItemListSeparator separator, *headerSeparator = nullptr, *footerSeparator = nullptr;
 	QVector<ItemPos> rects;
 	int rectCount = 0;
 	QColor originalColor;
 	qreal vpad = 0, hpad = 0, minimum = 0;
+	ItemListSeparator *getSeparator(ItemListSeparator *candidate) const {
+		return pick(candidate, const_cast<ItemListSeparator*>(&separator));
+	}
+	ItemListSeparator *getHeaderSeparator() const { return getSeparator(headerSeparator); }
+	ItemListSeparator *getFooterSeparator() const { return getSeparator(footerSeparator); }
+	ItemListAttached *attach(QObject *object) {
+		if (!object)
+			return nullptr;
+		ItemListAttached *attached = nullptr;
+		if (auto item = qobject_cast<QQuickItem*>(object)) {
+			attached = p->attached(item, false);
+			if (!attached)
+				attached = p->attached(item, true);
+			item->setParentItem(p);
+			connect(item, &QQuickItem::visibleChanged, p, &ItemListItem::polishAndUpdate);
+		} else {
+			attached = static_cast<ItemListSeparator*>(object);
+			Q_ASSERT(attached->isSeparator());
+		}
+		Q_ASSERT(attached != nullptr);
+		connectAttached(attached);
+		p->polishAndUpdate();
+		return attached;
+	}
 	void connectAttached(ItemListAttached *attached) {
 		connect(attached, &ItemListAttached::thicknessChanged, p, &ItemListItem::polishAndUpdate);
 		connect(attached, &ItemListAttached::verticalPaddingChanged, p, &ItemListItem::polishAndUpdate);
 		connect(attached, &ItemListAttached::horizontalPaddingChanged, p, &ItemListItem::polishAndUpdate);
 		connect(attached, &ItemListAttached::colorChanged, p, &ItemListItem::handleItemColorChanged);
 	}
-	bool changeListItem(ListItem &item, QObject *object) {
-		if (item.object() == object)
+	template<typename Attached>
+	bool changeAttached(Attached *&attached, QObject *object) {
+		static_assert(std::is_same<Attached, ItemListAttached>::value
+			|| std::is_same<Attached, ItemListSeparator>::value, "error!");
+		if (attached) {
+			if (attached->attachee() == object)
+				return false;
+			disconnect(attached->attachee(), nullptr, p, nullptr);
+			disconnect(attached, nullptr, p, nullptr);
+		} else if (!object)
 			return false;
-		if (item.object())
-			disconnect(item.object(), nullptr, p, nullptr);
-		item = ListItem{object};
-		if (item.attached()) {
-			if (!item.attached()->isSeparator())
-				static_cast<QQuickItem*>(object)->setParentItem(p);
-			connectAttached(item.attached());
-		}
-		p->polishAndUpdate();
+		attached = static_cast<Attached*>(attach(object));
 		return true;
 	}
 	template<typename T>
@@ -83,6 +110,41 @@ struct ItemListItem::Data {
 			pressed = ItemPos();
 		}
 	}
+	bool isHeaderVisible() const { return headerAttached && headerAttached->asItem()->isVisible(); }
+	bool isFooterVisible() const { return footerAttached && footerAttached->asItem()->isVisible(); }
+	template<typename InLoop>
+	void runLayoutLoop(InLoop inLoop) {
+		if (isHeaderVisible()) {
+			inLoop(headerAttached);
+			inLoop(getHeaderSeparator());
+		}
+		bool prevItem = false;
+		for (int i=0; i<list.size(); ++i) {
+			auto attached = list[i];
+			if (qFuzzyCompare(attached->thickness(), 0.0))
+				continue;
+			if (prevItem) { // prev is item
+				if (attached->isQmlItem()) {
+					if (attached->asItem()->isVisible()) {
+						inLoop(&separator); // add sep
+						inLoop(attached);   // and item
+					}
+				} else// attachee is separator
+					inLoop(attached); // add sep
+			} else { // prev is separator
+				if (attached->isQmlItem()) {
+					if (attached->asItem()->isVisible())
+						inLoop(attached); // add item
+				} // skip separator
+			}
+			prevItem = attached->isQmlItem();
+		}
+		if (isFooterVisible()) {
+			inLoop(getFooterSeparator());
+			inLoop(footerAttached);
+		}
+	}
+
 	template<typename O>
 	void layout() {
 		rectCount = 0;
@@ -93,45 +155,25 @@ struct ItemListItem::Data {
 
 		int fills = 0;
 		qreal filled = 0;
-		bool prevItem = false;
-		auto acc = [&filled, &fills, this] (const ListItem &item) {
-			filled += 2*O::padding(p, item.attached());
-			if (item.attached()->thickness() < 0)
+		auto calculate = [&filled, &fills, this] (const ItemListAttached *attached) {
+			filled += 2*O::padding(p, attached);
+			if (attached->thickness() < 0)
 				++fills;
 			else
-				filled += item.attached()->thickness();
+				filled += attached->thickness();
 		};
-		if (headerItem.object()) {
-			acc(headerItem);
-			acc(headerSeparator.object() ? headerSeparator : separator);
-		}
-		for (int i=0; i<list.size(); ++i) {
-			auto &item = list[i];
-			if (qFuzzyCompare(item.attached()->thickness(), 0.0))
-				continue;
-			if (prevItem && item.attached()->isQmlItem())
-				acc(separator);
-			acc(item);
-			prevItem = item.attached()->isQmlItem();
-		}
-		if (footerItem.object()) {
-			acc(footerSeparator.object() ? footerSeparator : separator);
-			acc(footerItem);
-		}
+		runLayoutLoop(calculate);
 		const auto fill = qMax((O::length(p) - filled)/fills, 0.0);
-		prevItem = false;
 		auto it = rects.begin();
 		qreal pos = 0;
-		auto append = [&it, &pos, fill, this] (const ListItem &item) {
-			auto attached = item.attached();
+		auto append = [&it, &pos, fill, this] (ItemListAttached *attached) {
 			const qreal total = pick(attached->thickness(), fill) + 2*O::padding(p, attached);
 			attached->fill(total);
-			const bool isItem = attached->isQmlItem();
-			if (isItem) {
+			if (attached->isQmlItem()) {
 				const auto vpad = pick(attached->verticalPadding(), this->vpad);
 				const auto hpad = pick(attached->horizontalPadding(), this->hpad);
 				const auto rect = O::itemRect(p, attached, pos, {hpad, vpad});
-				auto qml = static_cast<QQuickItem*>(item.object());
+				auto qml = static_cast<QQuickItem*>(attached->attachee());
 				qml->setPosition(rect.topLeft());
 				qml->setSize(rect.size());
 			}
@@ -139,20 +181,8 @@ struct ItemListItem::Data {
 			it->pos = pos;
 			++it;
 			pos += total;
-			return isItem;
 		};
-		if (headerItem.object()) {
-			append(headerItem);
-			append(headerSeparator.object() ? headerSeparator : separator);
-		}
-		for (int i=0; i<list.size(); ++i) {
-			auto &item = list[i];
-			if (qFuzzyCompare(item.attached()->thickness(), 0.0))
-				continue;
-			if (prevItem && item.attached()->isQmlItem())
-				append(separator);
-			prevItem = append(item);
-		}
+		runLayoutLoop(append);
 		rectCount = std::distance(rects.begin(), it);
 		if (_Change(minimum, filled))
 			emit p->minimumLengthChanged();
@@ -184,52 +214,52 @@ struct ItemListItem::Data {
 		}
 		return ItemPos();
 	}
+	static auto listAppend(QQmlListProperty<QObject> *list, QObject *item) -> void {
+		static_cast<ItemListItem*>(list->object)->append(item);
+	}
+	static auto listCount(QQmlListProperty<QObject> *list) -> int {
+		return static_cast<ItemListItem*>(list->object)->d->list.size();
+	}
+	static auto listAt(QQmlListProperty<QObject> *list, int index) -> QObject* {
+		return static_cast<ItemListItem*>(list->object)->d->list.at(index)->attachee();
+	}
+	static auto listClear(QQmlListProperty<QObject> *list) -> void {
+		static_cast<ItemListItem*>(list->object)->clear();
+	}
 };
 
 ItemListItem::ItemListItem(QQuickItem *parent)
 : TextureItem(parent), d(new Data) {
 	d->p = this;
-	d->separator = ListItem(new ItemListSeparator);
-	Q_ASSERT(d->separator.attached()->isSeparator());
 	setFlag(ItemHasContents);
 	setAcceptedMouseButtons(Qt::LeftButton);
-	connect(this, &ItemListItem::horizontalPaddingChanged, this, &ItemListItem::polish);
-	connect(this, &ItemListItem::verticalPaddingChanged, this, &ItemListItem::polish);
+	connect(this, &ItemListItem::horizontalPaddingChanged, this, &ItemListItem::polishAndUpdate);
+	connect(this, &ItemListItem::verticalPaddingChanged, this, &ItemListItem::polishAndUpdate);
 }
 
 ItemListItem::~ItemListItem() {
-	delete d->separator.object();
 	delete d;
 }
 
 QQmlListProperty<QObject> ItemListItem::list() const {
-	static auto append = [] (QQmlListProperty<QObject> *list, QObject *item) {
-		static_cast<ItemListItem*>(list->object)->append(item);
-	};
-	static auto count = [] (QQmlListProperty<QObject> *list) {
-		return static_cast<ItemListItem*>(list->object)->d->list.size();
-	};
-	static auto at = [] (QQmlListProperty<QObject> *list, int index) -> QObject* {
-		return static_cast<ItemListItem*>(list->object)->d->list.at(index).object();
-	};
-	static auto clear = [] (QQmlListProperty<QObject> *list) {
-		static_cast<ItemListItem*>(list->object)->clear();
-	};
-	return QQmlListProperty<QObject>(const_cast<ItemListItem*>(this), nullptr, append, count, at, clear);
+	return QQmlListProperty<QObject>(const_cast<ItemListItem*>(this), nullptr
+		, Data::listAppend, Data::listCount, Data::listAt, Data::listClear);
+}
+
+QQmlListProperty<QObject> ItemListItem::readOnlyList() const {
+	return QQmlListProperty<QObject>(const_cast<ItemListItem*>(this), nullptr
+		, Data::listCount, Data::listAt);
 }
 
 void ItemListItem::append(QObject *obj) {
-	ListItem item(obj);
-	if (!item.attached()->isSeparator())
-		static_cast<QQuickItem*>(obj)->setParentItem(this);
-	d->connectAttached(item.attached());
-	d->list.append(item);
-	polishAndUpdate();
+	auto attached = d->attach(obj);
+	attached->setIndex(d->list.size());
+	d->list.append(attached);
 }
 
 void ItemListItem::clear() {
 	for (int i=0; i<d->list.size(); ++i)
-		disconnect(d->list[i].attached(), nullptr, this, nullptr);
+		disconnect(d->list[i], nullptr, this, nullptr);
 	d->list.clear();
 }
 
@@ -294,7 +324,7 @@ void ItemListItem::updateSGGeometry(QSGGeometry *geometry) {
 }
 
 ItemListSeparator *ItemListItem::separator() const {
-	return static_cast<ItemListSeparator*>(d->separator.object());
+	return &d->separator;
 }
 
 void ItemListItem::mousePressEvent(QMouseEvent *event) {
@@ -307,7 +337,7 @@ void ItemListItem::mousePressEvent(QMouseEvent *event) {
 		d->pressed = d->contains<VerticalOrientation>(event->localPos());
 	if (d->pressed.attached && d->pressed.attached->isInteractive()) {
 		d->originalColor = d->pressed.attached->color();
-		d->pressed.attached->setColor(Qt::blue);
+		d->pressed.attached->setColor(d->highlight);
 	}
 }
 
@@ -319,8 +349,10 @@ void ItemListItem::mouseReleaseEvent(QMouseEvent *event) {
 			rect = HorizontalOrientation::vertexRect(this, d->pressed);
 		else
 			rect = VerticalOrientation::vertexRect(this, d->pressed);
-		if (rect.contains(event->localPos()))
+		if (rect.contains(event->localPos()) && d->pressed.attached->isQmlItem()) {
 			emit d->pressed.attached->clicked();
+			emit clicked(static_cast<QQuickItem*>(d->pressed.attached->attachee()));
+		}
 	}
 	d->releaseMouse();
 }
@@ -367,38 +399,42 @@ void ItemListItem::setOrientation(Qt::Orientation o) {
 }
 
 ItemListSeparator *ItemListItem::headerSeparator() const {
-	return static_cast<ItemListSeparator*>(d->headerSeparator.object());
+	return d->headerSeparator;
 }
 
 ItemListSeparator *ItemListItem::footerSeparator() const {
-	return static_cast<ItemListSeparator*>(d->footerSeparator.object());
+	return d->footerSeparator;
 }
 
 QQuickItem *ItemListItem::headerItem() const {
-	return static_cast<QQuickItem*>(d->headerItem.object());
+	return d->headerAttached ? static_cast<QQuickItem*>(d->headerAttached->attachee()) : nullptr;
 }
 
 QQuickItem *ItemListItem::footerItem() const {
-	return static_cast<QQuickItem*>(d->footerItem.object());
+	return d->footerAttached ? static_cast<QQuickItem*>(d->footerAttached->attachee()) : nullptr;
 }
 
 void ItemListItem::setHeaderItem(QQuickItem *item) {
-	if (d->changeListItem(d->headerItem, item))
+	if (d->changeAttached(d->headerAttached, item)) {
+		d->headerAttached->setIndex(HeaderItem);
 		emit headerItemChanged();
+	}
 }
 
 void ItemListItem::setFooterItem(QQuickItem *item) {
-	if (d->changeListItem(d->footerItem, item))
+	if (d->changeAttached(d->footerAttached, item)) {
+		d->footerAttached->setIndex(FooterItem);
 		emit footerItemChanged();
+	}
 }
 
 void ItemListItem::setHeaderSeparator(ItemListSeparator *sep) {
-	if (d->changeListItem(d->headerSeparator, sep))
+	if (d->changeAttached(d->headerSeparator, sep))
 		emit headerSeparatorChanged();
 }
 
 void ItemListItem::setFooterSeparator(ItemListSeparator *sep) {
-	if (d->changeListItem(d->footerSeparator, sep))
+	if (d->changeAttached(d->footerSeparator, sep))
 		emit footerSeparatorChanged();
 }
 
@@ -406,6 +442,18 @@ qreal ItemListItem::minimumLength() const {
 	return d->minimum;
 }
 
-const QList<ItemListItem::ListItem> &ItemListItem::itemList() const {
+const QList<ItemListAttached*> &ItemListItem::attachedList() const {
 	return d->list;
+}
+
+QColor ItemListItem::highlight() const {
+	return d->highlight;
+}
+
+void ItemListItem::setHighlight(const QColor &color) {
+	if (_Change(d->highlight, color)) {
+		if (d->pressed.attached && d->pressed.attached->isInteractive())
+			d->pressed.attached->setColor(d->highlight);
+		emit highlightChanged();
+	}
 }

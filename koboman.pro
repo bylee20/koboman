@@ -33,7 +33,8 @@ SOURCES += main.cpp \
     items/textureitem.cpp \
     items/toplevelcontainer.cpp \
     items/itemlistitem.cpp \
-    items/textlistitem.cpp
+    items/textlistitem.cpp \
+    items/buttonboxitem.cpp
 
 # Installation path
 # target.path =
@@ -67,7 +68,8 @@ HEADERS += \
     items/textureitem.hpp \
     items/toplevelcontainer.hpp \
     items/itemlistitem.hpp \
-    items/textlistitem.hpp
+    items/textlistitem.hpp \
+    items/buttonboxitem.hpp
 
 INCLUDEPATH += zbar
 

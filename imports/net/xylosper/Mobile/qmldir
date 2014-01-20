@@ -1,2 +1,3 @@
 module net.xylosper.Mobile
-ButtonBox			1.0 ButtonBox.qml
+Dialog			1.0 Dialog.qml
+MessageBox              1.0 MessageBox.qml
