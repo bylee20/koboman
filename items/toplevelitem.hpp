@@ -17,7 +17,6 @@ class TopLevelItem : public TextureItem {
 	Q_PROPERTY(TopLevelContainer *container READ container CONSTANT FINAL)
 	Q_PROPERTY(TopLevelShadow *shadow READ shadow CONSTANT FINAL)
 	Q_PROPERTY(bool autohide READ autohide WRITE setAutohide NOTIFY autohideChanged FINAL)
-	Q_PROPERTY(qreal visibility READ visibility WRITE setVisibility NOTIFY visibilityChanged FINAL)
 public:
 	TopLevelItem(QQuickItem *parent = 0);
 	~TopLevelItem();
@@ -27,26 +26,21 @@ public:
 	void setBoundary(qreal boundary);
 	TopLevelContainer *container() const;
 	TopLevelShadow *shadow() const;
-	bool visibility() const;
-	void setVisibility(qreal visibility);
 	bool autohide() const;
 	void setAutohide(bool autohide);
 public slots:
 	void show();
 	void hide();
 signals:
-	void visibilityChanged();
 	void shadeChanged();
 	void containerPositionChanged();
 	void boundaryChanged();
 	void autohideChanged();
 	void canceled();
 private slots:
-	void updateWindow(QQuickWindow *window);
 	void updateParentItem();
 	void updateFocusState();
 	void updateContainerRect();
-	void updateVisible();
 	void handleAnimationFinished();
 private:
 	void componentComplete();

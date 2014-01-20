@@ -11,7 +11,6 @@ class Utility : public QObject {
 	Q_OBJECT
 	Q_PROPERTY(qreal dpi READ dpi CONSTANT FINAL)
 	Q_PROPERTY(QQuickItem *root READ root CONSTANT FINAL)
-	Q_PROPERTY(QFont font READ font CONSTANT FINAL)
 	Q_PROPERTY(qreal dp1 READ dp1 CONSTANT FINAL)
 	Q_PROPERTY(qreal dp2 READ dp2 CONSTANT FINAL)
 	Q_PROPERTY(qreal dp3 READ dp3 CONSTANT FINAL)
@@ -45,8 +44,7 @@ public:
 	Q_INVOKABLE static qreal dpToPx(qreal dp) { return dp*m_d2p; }
 	Q_INVOKABLE static QString storage() { return m_storage; }
 	qreal dpi() const { return m_dpi; }
-	QQuickItem *root() const { return m_root; }
-	static QFont font() { return m_font; }
+	static QQuickItem *root() { return m_root; }
 	static void initialize(QQuickWindow *window);
 #define DP(i) static qreal dp##i() { return dpToPx(i); }
 	DP(  1)DP(  2)DP(  3)DP(  4)DP(  5)DP(  6)DP(  7)DP(  8)DP(  9)
@@ -55,7 +53,6 @@ public:
 #undef DP
 private:
 	static qreal m_p2d, m_d2p, m_dpi;
-	static QFont m_font;
 	static QString m_storage;
 	static QQuickItem *m_root;
 };

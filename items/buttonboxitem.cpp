@@ -41,10 +41,23 @@ void ButtonBoxItem::setButtons(const QList<int> &buttons) {
 	}
 }
 
-QString ButtonBoxItem::buttonText(Button button) {
-	return buttonTexts[button];
+QString ButtonBoxItem::buttonText(Button button) const {
+	return button == Custom ? d->customButtonText : buttonTexts[button];
 }
 
 QList<int> ButtonBoxItem::buttons() const {
 	return d->buttons;
+}
+
+QString ButtonBoxItem::customButtonText() const {
+	return d->customButtonText;
+}
+
+void ButtonBoxItem::setCustomButtonText(const QString &text) {
+	if (_Change(d->customButtonText, text)) {
+		const int index = d->buttons.indexOf(Custom);
+		if (index != -1)
+			setText(index, d->customButtonText);
+		emit customButtonTextChanged();
+	}
 }

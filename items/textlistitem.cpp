@@ -3,12 +3,16 @@
 #include <QQmlContext>
 #include <QQmlComponent>
 
+static QMetaMethod mmPolishAndUpdate;
+static QMetaMethod mmTextChanged;
+
 struct TextListItem::Data {
 	QQmlComponent *component = nullptr;
 	QList<QQuickItem*> textItems;
 	QStringList texts;
 	QFont font;
 	Qt::AlignmentFlag valign = Qt::AlignVCenter, haligh = Qt::AlignLeft;
+	qreal textHeight = -1.0;
 	bool interactive = false;
 	template<typename T>
 	void setTextProperty(const char *name, const T &t) {
@@ -19,7 +23,10 @@ struct TextListItem::Data {
 
 TextListItem::TextListItem(QQuickItem *parent)
 : ItemListItem(parent), d(new Data) {
-	d->font = Utility::font();
+	d->font = Theme::font();
+	d->textHeight = Theme::lineHeight() - 2*Theme::padding();
+	setVerticalPadding(Theme::padding());
+	setHorizontalPadding(Theme::padding());
 	connect(this, &ItemListItem::listChanged, this, &TextListItem::itemsChanged);
 }
 
@@ -51,7 +58,23 @@ void TextListItem::setTexts(const QStringList &texts) {
 			item->setProperty("verticalAlignment", d->valign);
 			item->setProperty("horizontalAlignment", d->haligh);
 			item->setProperty("font", d->font);
-			attached(item, true)->setInteractive(true);
+			auto attached = this->attached(item, true);
+			attached->setInteractive(true);
+			attached->setThickness(d->textHeight);
+			if (!mmPolishAndUpdate.isValid()) {
+				auto find = [] (QObject *object, const char *name) {
+					auto *mm = object->metaObject();
+					const int size = mm->methodCount();
+					for (int i=0; i<size; ++i) {
+						if (!qstrcmp(mm->method(i).name(), name))
+							return mm->method(i);
+					}
+					return QMetaMethod();
+				};
+				mmPolishAndUpdate = find(this, "polishAndUpdate");
+				mmTextChanged = find(item, "textChanged");
+			}
+			connect(item, mmTextChanged, this, mmPolishAndUpdate);
 			d->textItems.append(item);
 		}
 	}
@@ -69,6 +92,7 @@ QFont TextListItem::font() const {
 void TextListItem::setFont(const QFont &font) {
 	if (_Change(d->font, font)) {
 		d->setTextProperty("font", d->font);
+		polishAndUpdate();
 		emit fontChanged();
 	}
 }
@@ -104,5 +128,22 @@ void TextListItem::setInteractive(bool interactive) {
 		for (auto item : d->textItems)
 			attached(item, false)->setInteractive(interactive);
 		emit interactiveChanged();
+	}
+}
+
+void TextListItem::setText(int index, const QString &text) {
+	if (auto item = d->textItems.value(index))
+		item->setProperty("text", text);
+}
+
+qreal TextListItem::textHeight() const {
+	return d->textHeight;
+}
+
+void TextListItem::setTextHeight(qreal height) {
+	if (_Change(d->textHeight, height)) {
+		for (auto item : d->textItems)
+			attached(item, false)->setThickness(d->textHeight);
+		emit textHeightChanged();
 	}
 }

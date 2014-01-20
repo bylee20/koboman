@@ -3,22 +3,24 @@
 #include <QDebug>
 #include <QQuickWindow>
 #include "utility.hpp"
+#include "themeapi.hpp"
 #include <QPropertyAnimation>
 #include <QParallelAnimationGroup>
 
 struct TopLevelItem::Data {
 	TopLevelItem *p = nullptr;
-	QQuickWindow *window = nullptr;
-	QMatrix4x4 vMatrix;
+	QQuickItem *root = Utility::root();
 	QTransform trans;
 	int loc_shade = -1, loc_tex_box = -1, loc_trans = -1;
-	qreal shade = 0.5, boundary = Utility::dpToPx(10), visibility = 1.0;
+	qreal shade = 0.5, boundary = Theme::spacing();
 	GLuint texBox = GL_NONE, transparent = GL_NONE;
 	bool redraw = false, upload = false, autohide = true, animate = true;
 	QSize textureSize{0, 0};
 	QRectF boxRect{0.0, 0.0, 0.0, 0.0};
 	TopLevelContainer *container = nullptr;
 	TopLevelShadow *shadow = nullptr;
+	QParallelAnimationGroup animation;
+	QPropertyAnimation scaler, dimmer;
 	void update() { redraw = true; p->update(); }
 	void checkAnimation() {
 		const int count = animation.animationCount();
@@ -28,14 +30,11 @@ struct TopLevelItem::Data {
 		} else if (count == 2)
 			animation.removeAnimation(&scaler);
 	}
-
-	Connections windowConnections;
-	QParallelAnimationGroup animation;
-	QPropertyAnimation scaler, dimmer;
 };
 
 TopLevelItem::TopLevelItem(QQuickItem *parent)
 : TextureItem(parent), d(new Data) {
+	Q_ASSERT(d->root != nullptr);
 	d->p = this;
 	d->shadow = new TopLevelShadow(this);
 	d->container = new TopLevelContainer(this);
@@ -52,15 +51,17 @@ TopLevelItem::TopLevelItem(QQuickItem *parent)
 	d->dimmer.setEasingCurve(QEasingCurve::OutCubic);
 	d->animation.addAnimation(&d->dimmer);
 
+	setParentItem(d->root);
+	connect(d->root->window(), &QQuickWindow::widthChanged, this, &QQuickItem::setWidth);
+	connect(d->root->window(), &QQuickWindow::heightChanged, this, &QQuickItem::setHeight);
+	setVisible(false);
+
 	setZ(1e200);
 	setFlags(ItemHasContents | ItemIsFocusScope);
 	setAcceptedMouseButtons(Qt::AllButtons);
-	updateWindow(window());
-	connect(this, &TopLevelItem::windowChanged, this, &TopLevelItem::updateWindow);
 	connect(this, &TopLevelItem::parentChanged, this, &TopLevelItem::updateParentItem);
 	connect(this, &TopLevelItem::focusChanged, this, &TopLevelItem::updateFocusState);
 	connect(this, &TopLevelItem::visibleChanged, this, &TopLevelItem::updateFocusState);
-	connect(this, &TopLevelItem::visibilityChanged, this, &TopLevelItem::updateVisible);
 	connect(&d->animation, &QPropertyAnimation::finished, this, &TopLevelItem::handleAnimationFinished);
 	connect(d->container, &TopLevelContainer::itemChanged, [this] () {
 		d->scaler.setTargetObject(d->container->item());
@@ -72,11 +73,8 @@ TopLevelItem::~TopLevelItem() {
 		d->animation.removeAnimation(&d->scaler);
 	d->animation.removeAnimation(&d->dimmer);
 	disconnect(this, nullptr, this, nullptr);
+	disconnect(d->root->window(), nullptr, this, nullptr);
 	delete d;
-}
-
-void TopLevelItem::updateVisible() {
-	setVisible(d->visibility > 0.0);
 }
 
 void TopLevelItem::componentComplete() {
@@ -177,10 +175,8 @@ void TopLevelItem::updateFocusState() {
 }
 
 void TopLevelItem::updateParentItem() {
-	if (d->window) {
-		setParentItem(d->window->contentItem());
-		updateFocusState();
-	}
+	setParentItem(d->root);
+	updateFocusState();
 }
 
 void TopLevelItem::mousePressEvent(QMouseEvent *event) {
@@ -209,21 +205,6 @@ void TopLevelItem::keyReleaseEvent(QKeyEvent *event) {
 			break;
 		default:
 			break;
-		}
-	}
-}
-
-void TopLevelItem::updateWindow(QQuickWindow *window) {
-	if (_Change(d->window, window)) {
-		d->windowConnections.clear();
-		if (d->window) {
-			auto root = d->window->contentItem();
-			d->windowConnections
-				<< connect(d->window, &QQuickWindow::widthChanged, root, &QQuickItem::setWidth)
-				<< connect(d->window, &QQuickWindow::heightChanged, root, &QQuickItem::setHeight)
-				<< connect(d->window, &QQuickWindow::widthChanged, this, &QQuickItem::setWidth)
-				<< connect(d->window, &QQuickWindow::heightChanged, this, &QQuickItem::setHeight);
-			updateParentItem();
 		}
 	}
 }
@@ -267,15 +248,6 @@ void TopLevelItem::updateContainerRect() {
 	d->trans.reset();
 	d->trans.scale(width()/d->boxRect.width(), height()/d->boxRect.height());
 	d->trans.translate(-d->boxRect.x()/width(), -d->boxRect.y()/height());
-}
-
-bool TopLevelItem::visibility() const {
-	return d->visibility;
-}
-
-void TopLevelItem::setVisibility(qreal vis) {
-	if (_Change(d->visibility, vis))
-		emit visibilityChanged();
 }
 
 bool TopLevelItem::autohide() const {

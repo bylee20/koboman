@@ -4,7 +4,7 @@ import KoboMan 1.0
 Item {
 	id: win
 	objectName: "App"
-	property ActionBar actionBar
+	property Item actionBar
 	property Item contentItem
 	property Busy busy: Busy {}
 
@@ -21,10 +21,10 @@ Item {
 		anchors.bottom: parent.bottom
 	}
 
-	Dialog {
-		id: mbox; innerItem: Text { id: message; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
-		onTriggered: if (win.messageBox.cb) win.messageBox.cb(text)
-	}
+//	Dialog {
+//		id: mbox; innerItem: Text { id: message; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+//		onTriggered: if (win.messageBox.cb) win.messageBox.cb(text)
+//	}
 
 	function messageBox(title, text, buttons, cb) {
 		messageBox.cb = cb

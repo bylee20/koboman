@@ -16,16 +16,6 @@ Android.App {
 	height: 640
 	focus: true
 
-	Mobile.MessageBox {
-		title: "Title"
-		text: "This is a message box to test long text with wrapping mode WrapAtWordBoundaryOrAnywhere"
-		buttons: [ Mobile.ButtonBox.Cancel, Mobile.ButtonBox.Ok ]
-		contentHeight: minimumHeight
-		contentWidth: 300
-		onReturned: {
-			console.log(Mobile.ButtonBox.buttonText(button))
-		}
-	}
 
 
 //	Mobile.TopLevel {
@@ -72,18 +62,20 @@ Android.App {
 		}
 	}
 
-	Android.Dialog {
-		id: fileDialog
-		innerItemPadding: 0
-		innerItem: TableView {
-			TableViewColumn{ role: "file"; title: "Title" }
-			model: ListModel {
-				id: fileListModel
-			}
-		 }
-	}
+//	Android.Dialog {
+//		id: fileDialog
+//		innerItemPadding: 0
+//		innerItem: TableView {
+//			TableViewColumn{ role: "file"; title: "Title" }
+//			model: ListModel {
+//				id: fileListModel
+//			}
+//		 }
+//	}
 
-	actionBar: Android.ActionBar {
+	actionBar: Mobile.ActionBar {
+		height: 200
+	}/*Android.ActionBar {
 		contentItem: ColumnLayout {
 			anchors.fill: parent
 			Text {
@@ -117,13 +109,13 @@ Android.App {
 			Android.ActionBarButton {
 				id: over
 				icon: "qrc:///icon/ic_action_overflow.png"
-				menu: Android.Menu {
-					items: [
-						Android.Action {
+				menu: Mobile.Menu {
+					actions: [
+						Mobile.Action {
 							text: qsTr("작업 파일 열기")
 							onTriggered: fileDialog.show()
 						},
-						Android.Action {
+						Mobile.Action {
 							text: qsTr("도서 원부 불러오기")
 							onTriggered: Library.import_()
 						}
@@ -132,7 +124,7 @@ Android.App {
 
 			}
 		]
-	}
+	}*/
 
 	contentItem: Item {
 		anchors.fill: parent; //anchors.bottomMargin: scanButton.height
@@ -198,43 +190,43 @@ Android.App {
 //				if (event.key === Qt.Key_Back)
 //			}
 
-			Rectangle {
-				anchors.fill: parent
-				color:"white"
-				Mobile.ItemList {
-					anchors.fill: parent
-					verticalPadding: 20
-					orientation: Qt.Horizontal
-					headerItem: Text {
-						text: "header"
-						Mobile.ItemList.thickness: 100
-						Mobile.ItemList.interactive: true
-					}
-					headerSeparator: Mobile.ItemListSeparator {
-						color: "blue"
-						thickness: 20
-					}
-					separator {
-						color: "green"
-					}
-					onClicked: console.log(item.text, item.Mobile.ItemList.index)
+//			Rectangle {
+//				anchors.fill: parent
+//				color:"white"
+//				Mobile.ItemList {
+//					anchors.fill: parent
+//					verticalPadding: 20
+//					orientation: Qt.Horizontal
+//					headerItem: Text {
+//						text: "header"
+//						Mobile.ItemList.thickness: 100
+//						Mobile.ItemList.interactive: true
+//					}
+//					headerSeparator: Mobile.ItemListSeparator {
+//						color: "blue"
+//						thickness: 20
+//					}
+//					separator {
+//						color: "green"
+//					}
+//					onClicked: console.log(item.text, item.Mobile.ItemList.index)
 
-					items: [
-						Text {
-							color:"green"
-							Mobile.ItemList.thickness: -1
-							Mobile.ItemList.color: Qt.rgba(1.0, 0, 0, 0)
-							text:"aaa"
-						},
-						Rectangle {
-							Mobile.ItemList.verticalPadding: 50
-							color:"black"
-							implicitHeight: 100
-						}
+//					items: [
+//						Text {
+//							color:"green"
+//							Mobile.ItemList.thickness: -1
+//							Mobile.ItemList.color: Qt.rgba(1.0, 0, 0, 0)
+//							text:"aaa"
+//						},
+//						Rectangle {
+//							Mobile.ItemList.verticalPadding: 50
+//							color:"black"
+//							implicitHeight: 100
+//						}
 
-					]
-				}
-			}
+//					]
+//				}
+//			}
 		}
 
 		Android.ScrollBar {

@@ -1,9 +1,25 @@
-#ifndef TEXTLISTITEM_HPP
-#define TEXTLISTITEM_HPP
+#ifndef ACTIONLISTITEM_HPP
+#define ACTIONLISTITEM_HPP
 
 #include "itemlistitem.hpp"
 
-class TextListItem : public ItemListItem {
+class Action : public QObject {
+	Q_OBJECT
+	Q_PROPERTY(QString text MEMBER m_text NOTIFY textChanged)
+	Q_PROPERTY(QUrl icon MEMBER m_icon NOTIFY iconChanged)
+public:
+	Action(QObject *parent = nullptr): QObject(parent) {}
+	QString text() const { return m_text; }
+	QUrl icon() const { return m_icon; }
+signals:
+	void textChanged();
+	void iconChanged();
+private:
+	QString m_text;
+	QUrl m_icon;
+};
+
+class ActionListItem : public ItemListItem {
 	Q_OBJECT
 	Q_PROPERTY(QQmlListProperty<QObject> items READ readOnlyList NOTIFY itemsChanged)
 	Q_PROPERTY(QStringList texts READ texts WRITE setTexts NOTIFY textsChanged FINAL)
@@ -13,9 +29,11 @@ class TextListItem : public ItemListItem {
 	Q_PROPERTY(bool interactive READ isInteractive WRITE setInteractive  NOTIFY interactiveChanged)
 	Q_PROPERTY(qreal textHeight READ textHeight WRITE setTextHeight NOTIFY textHeightChanged)
 public:
-	TextListItem(QQuickItem *parent = nullptr);
-	~TextListItem();
+	ActionListItem(QQuickItem *parent = nullptr);
+	~ActionListItem();
 	QStringList texts() const;
+	QQmlListProperty<Action> actions() const;
+	void append(Action *action);
 	void setTexts(const QStringList &texts);
 	QFont font() const;
 	void setFont(const QFont &font);
@@ -43,4 +61,4 @@ private:
 	Data *d;
 };
 
-#endif // TEXTLISTITEM_HPP
+#endif // ACTIONLISTITEM_HPP

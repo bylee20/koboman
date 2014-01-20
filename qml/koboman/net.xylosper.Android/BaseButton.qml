@@ -8,7 +8,7 @@ Rectangle {
 	property bool enabled: true
 	property alias pressed: buttonMouse.pressed
 	property Item menu
-	onMenuChanged: { if (menu) menu.attach = this }
+	onMenuChanged: { if (menu) menu.container.attach = this }
 
 	opacity: enabled ? 1.0 : 0.3
 	Rectangle {

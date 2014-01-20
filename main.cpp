@@ -6,6 +6,7 @@
 #include "booklistmodel.hpp"
 #include "library.hpp"
 #include "utility.hpp"
+#include "items/themeapi.hpp"
 #include "items/toplevelitem.hpp"
 #include "items/toplevelcontainer.hpp"
 #include "items/itemlistitem.hpp"
@@ -26,6 +27,7 @@ int main(int argc, char *argv[]) {
 	qmlRegisterType<ItemListSeparator>("net.xylosper.Mobile", 1, 0, "ItemListSeparator");
 	qmlRegisterUncreatableType<TopLevelContainer>("net.xylosper.Mobile", 1, 0, "TopLevelContainer", "wrong");
 	qmlRegisterUncreatableType<TopLevelShadow>("net.xylosper.Mobile", 1, 0, "TopLevelContainerShadow", "wrong");
+	qmlRegisterSingletonType<Theme>("net.xylosper.Mobile", 1, 0, "Theme", singletonProvider<Theme>);
 	qmlRegisterSingletonType<Utility>("KoboMan", 1, 0, "Utility", singletonProvider<Utility>);
 	qmlRegisterSingletonType<Utility>("net.xylosper.Mobile", 1, 0, "Utility", singletonProvider<Utility>);
 
@@ -40,6 +42,7 @@ int main(int argc, char *argv[]) {
 #endif
 	qDebug() << viewer.engine()->importPathList();
 	Utility::initialize(&viewer);
+	Theme::initialize(Theme::androidHoloLight());
 	BookListModel bookList;
 	viewer.rootContext()->setContextProperty("BookList", &bookList);
 	viewer.rootContext()->setContextProperty("Library", &Library::get());

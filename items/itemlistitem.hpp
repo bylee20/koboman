@@ -4,6 +4,7 @@
 #include "textureitem.hpp"
 #include "utils.hpp"
 #include "utility.hpp"
+#include "themeapi.hpp"
 
 class ItemListAttached : public QObject {
 	Q_OBJECT
@@ -23,8 +24,8 @@ public:
 	: QObject(parent), m_separator(separator) {
 		Q_ASSERT(m_separator);
 		m_vpad = m_hpad = 0.0;
-		m_thickness = Utility::dpToPx(2);
-		m_color = Qt::gray;
+		m_thickness = Theme::separator();
+		m_color = Theme::separatorColor();
 		m_interactive = false;
 		m_attachee = this;
 	}
@@ -46,6 +47,7 @@ public:
 	void setInteractive(bool on) { if (_Change(m_interactive, on)) emit interactiveChanged(); }
 	void setIndex(int index) { m_index = index; }
 	int index() const { return m_index; }
+	bool needsVertex() const { return m_color.alpha() && m_filling > 0.0; }
 signals:
 	void thicknessChanged();
 	void separatorChanged();
@@ -108,10 +110,11 @@ public:
 	void setFooterItem(QQuickItem *item);
 	void setHeaderSeparator(ItemListSeparator *sep);
 	void setFooterSeparator(ItemListSeparator *sep);
-	void polishAndUpdate() { polish(); update(); }
 	qreal minimumLength() const;
 	QColor highlight() const;
 	void setHighlight(const QColor &color);
+public slots:
+	void polishAndUpdate() { polish(); update(); }
 signals:
 	void highlightChanged();
 	void clicked(QQuickItem *item);

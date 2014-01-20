@@ -34,7 +34,9 @@ SOURCES += main.cpp \
     items/toplevelcontainer.cpp \
     items/itemlistitem.cpp \
     items/textlistitem.cpp \
-    items/buttonboxitem.cpp
+    items/buttonboxitem.cpp \
+    items/themeapi.cpp \
+    items/actionlistitem.cpp
 
 # Installation path
 # target.path =
@@ -69,7 +71,9 @@ HEADERS += \
     items/toplevelcontainer.hpp \
     items/itemlistitem.hpp \
     items/textlistitem.hpp \
-    items/buttonboxitem.hpp
+    items/buttonboxitem.hpp \
+    items/themeapi.hpp \
+    items/actionlistitem.hpp
 
 INCLUDEPATH += zbar
 

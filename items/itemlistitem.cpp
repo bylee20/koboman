@@ -42,7 +42,7 @@ struct HorizontalOrientation {
 
 struct ItemListItem::Data {
 	ItemListItem *p = nullptr;
-	QColor highlight = Qt::blue;
+	QColor highlight = Theme::highlight();
 	Qt::Orientation orientation = Qt::Vertical;
 	QList<ItemListAttached*> list;
 	ItemPos pressed;
@@ -192,7 +192,7 @@ struct ItemListItem::Data {
 	void updateVertex(QSGGeometry *geometry) {
 		int size = 0;
 		for (int i=0; i<rectCount; ++i) {
-			if (rects[i].attached->color().alpha())
+			if (rects[i].attached->needsVertex())
 				size += 6;
 		}
 		geometry->allocate(size);
@@ -200,9 +200,8 @@ struct ItemListItem::Data {
 			auto v = geometry->vertexDataAsColoredPoint2D();
 			for (int i=0; i<rectCount; ++i) {
 				const auto &item = rects[i];
-				if (item.attached->color().alpha()) {
+				if (item.attached->needsVertex())
 					v = fillColoredPointAsTriangle(v, O::vertexRect(p, item), item.attached->color());
-				}
 			}
 		}
 	}

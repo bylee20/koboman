@@ -1,3 +1,6 @@
 module net.xylosper.Mobile
 Dialog			1.0 Dialog.qml
 MessageBox              1.0 MessageBox.qml
+Menu                    1.0 Menu.qml
+Action                  1.0 Action.qml
+ActionBar               1.0 ActionBar.qml
