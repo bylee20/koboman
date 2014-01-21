@@ -5,6 +5,8 @@
 #include "utils.hpp"
 #include "utility.hpp"
 #include "themeapi.hpp"
+#include <QQmlEngine>
+#include <QQmlContext>
 
 class ItemListAttached : public QObject {
 	Q_OBJECT
@@ -15,25 +17,16 @@ class ItemListAttached : public QObject {
 	Q_PROPERTY(qreal horizontalPadding READ horizontalPadding WRITE setHorizontalPadding NOTIFY horizontalPaddingChanged)
 	Q_PROPERTY(bool interactive READ isInteractive WRITE setInteractive NOTIFY interactiveChanged)
 	Q_PROPERTY(int index READ index CONSTANT FINAL)
+	Q_PROPERTY(Qt::Orientation orientation READ orientation NOTIFY orientationChanged)
 public:
-	ItemListAttached(QObject *parent = nullptr)
-	: QObject(parent) {
-		m_attachee = parent;
-	}
-	ItemListAttached(bool separator, QObject *parent = nullptr)
-	: QObject(parent), m_separator(separator) {
-		Q_ASSERT(m_separator);
-		m_vpad = m_hpad = 0.0;
-		m_thickness = Theme::separator();
-		m_color = Theme::separatorColor();
-		m_interactive = false;
-		m_attachee = this;
-	}
+	ItemListAttached(QObject *parent = nullptr);
+	ItemListAttached(bool separator, QObject *parent = nullptr);
 	QObject *attachee() const { return m_attachee; }
 	QQuickItem *asItem() const { Q_ASSERT(isQmlItem()); return static_cast<QQuickItem*>(m_attachee); }
 	qreal thickness() const { return m_thickness; }
 	bool isSeparator() const { return m_separator; }
 	bool isQmlItem() const { return !m_separator; }
+	bool canInteract() const { return m_interactive && !m_separator && asItem()->isEnabled(); }
 	void setThickness(qreal h) { if (_Change(m_thickness, h)) emit thicknessChanged(); }
 	void setColor(const QColor &color) { if (_Change(m_color, color)) emit colorChanged(); }
 	QColor color() const { return m_color; }
@@ -48,6 +41,8 @@ public:
 	void setIndex(int index) { m_index = index; }
 	int index() const { return m_index; }
 	bool needsVertex() const { return m_color.alpha() && m_filling > 0.0; }
+	void setOrientation(Qt::Orientation o) { if (_Change(m_orientation, o)) emit orientationChanged(); }
+	Qt::Orientation orientation() const { return m_orientation; }
 signals:
 	void thicknessChanged();
 	void separatorChanged();
@@ -56,6 +51,7 @@ signals:
 	void horizontalPaddingChanged();
 	void clicked();
 	void interactiveChanged();
+	void orientationChanged();
 private:
 	qreal m_thickness = -1, m_filling = -1, m_vpad = -1, m_hpad = -1;
 	bool m_separator = false;
@@ -63,6 +59,7 @@ private:
 	bool m_interactive = false;
 	int m_index = -1;
 	QObject *m_attachee = nullptr;
+	Qt::Orientation m_orientation = Qt::Vertical;
 };
 
 class ItemListSeparator : public ItemListAttached {
@@ -86,6 +83,7 @@ class ItemListItem : public TextureItem {
 	Q_PROPERTY(ItemListSeparator *footerSeparator READ footerSeparator WRITE setFooterSeparator NOTIFY footerSeparatorChanged)
 	Q_PROPERTY(qreal minimumLength READ minimumLength NOTIFY minimumLengthChanged FINAL)
 	Q_PROPERTY(QColor highlight READ highlight WRITE setHighlight NOTIFY highlightChanged FINAL)
+	Q_PROPERTY(qreal fixedItemLength READ fixedItemLength WRITE setFixedItemLength NOTIFY fixedItemLengthChanged)
 public:
 	enum SpecialItem { HeaderItem = -2, FooterItem = -3 };
 	ItemListItem(QQuickItem *parent = nullptr);
@@ -113,25 +111,28 @@ public:
 	qreal minimumLength() const;
 	QColor highlight() const;
 	void setHighlight(const QColor &color);
+	static ItemListAttached *attached(QQuickItem *item, bool create) {
+		return static_cast<ItemListAttached*>(qmlAttachedPropertiesObject<ItemListItem>(item, create));
+	}
+	void setFixedItemLength(qreal width);
+	qreal fixedItemLength() const;
 public slots:
 	void polishAndUpdate() { polish(); update(); }
 signals:
+	void fixedItemLengthChanged();
 	void highlightChanged();
 	void clicked(QQuickItem *item);
 	void minimumLengthChanged();
 	void listChanged();
 	void verticalPaddingChanged();
 	void horizontalPaddingChanged();
-	void orientationChanged();
+	void orientationChanged(Qt::Orientation orientation);
 	void headerItemChanged();
 	void footerItemChanged();
 	void headerSeparatorChanged();
 	void footerSeparatorChanged();
 protected:
 	const QList<ItemListAttached*> &attachedList() const;
-	static ItemListAttached *attached(QQuickItem *item, bool create) {
-		return static_cast<ItemListAttached*>(qmlAttachedPropertiesObject<ItemListItem>(item, create));
-	}
 private:
 	void handleItemColorChanged();
 	void updatePolish();

@@ -1,6 +1,7 @@
 #include "themeapi.hpp"
 #include "utility.hpp"
 #include <QGuiApplication>
+#include <QFontDatabase>
 
 static inline qreal d2p(qreal dp) { return Utility::dpToPx(dp); }
 

@@ -6,22 +6,16 @@ TopLevel {
 	property alias contentWidth: item.width
 	property alias contentHeight: item.height
 	readonly property alias minimumHeight: item.minimumLength
-	property list<Action> actions
+	property alias actions: item.items
 	signal returned(int result)
 	shade: 0.0
 	container.color: Theme.background
-	container.item: TextList {
+	container.item: ItemList {
 		id: item
+		fixedItemLength: Theme.lineHeight
 		orientation: Qt.Vertical
 		width: Utility.dpToPx(220)
 		height: item.minimumLength
-		onClicked: { actions[item.ItemList.index].triggered(); dialog.hide() }
+		onClicked: { dialog.hide() }
 	}
-	onActionsChanged: {
-		var texts = []
-		for (var i=0; i<actions.length; ++i)
-			texts[i] = actions[i].text
-		item.texts = texts
-	}
-
 }

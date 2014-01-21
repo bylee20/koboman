@@ -12,6 +12,7 @@
 #include "items/itemlistitem.hpp"
 #include "items/textlistitem.hpp"
 #include "items/buttonboxitem.hpp"
+#include "items/actionitem.hpp"
 
 template<typename T>
 static QObject *singletonProvider(QQmlEngine*, QJSEngine*) { return new T; }
@@ -20,6 +21,7 @@ int main(int argc, char *argv[]) {
 	QGuiApplication app(argc, argv);
 
 	qmlRegisterType<ItemListAttached>();
+	qmlRegisterType<ActionItem>("net.xylosper.Mobile", 1, 0, "Action");
 	qmlRegisterType<TopLevelItem>("net.xylosper.Mobile", 1, 0, "TopLevel");
 	qmlRegisterType<ItemListItem>("net.xylosper.Mobile", 1, 0, "ItemList");
 	qmlRegisterType<TextListItem>("net.xylosper.Mobile", 1, 0, "TextList");

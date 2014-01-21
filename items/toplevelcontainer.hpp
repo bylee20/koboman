@@ -55,6 +55,7 @@ public:
 	QSizeF size() const { return m_size; }
 public slots:
 	void repaint();
+	void reattach();
 signals:
 	void paintingAreaChanged();
 	void repainted();
@@ -67,7 +68,6 @@ signals:
 	void sizeChanged();
 	void radiusChanged();
 private slots:
-	void reattach();
 	void reposition();
 	void resize();
 private:

@@ -2,7 +2,6 @@ import QtQuick 2.1
 import QtQuick.Controls 1.1
 import QtQuick.Layouts 1.1
 import QtQuick.Controls.Styles 1.1
-import KoboMan 1.0
 import net.xylosper.Mobile 1.0 as Mobile
 
 Mobile.TopLevel {

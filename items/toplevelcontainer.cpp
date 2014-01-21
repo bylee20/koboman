@@ -237,7 +237,7 @@ void TopLevelContainer::setAttach(QQuickItem *attach) {
 }
 
 void TopLevelContainer::reattach() {
-	auto pos = m_attach ? m_attach->mapToItem(m_top, {m_attach->x(), m_attach->y() + m_attach->height()}) : m_position;
+	auto pos = m_attach ? m_attach->mapToItem(m_top, {0.0, m_attach->height()}) : m_position;
 	const auto boundary = m_top->boundary();
 	const auto right = pos.x() + m_size.width() + boundary;
 	const auto bottom = pos.y() + m_size.height() + boundary;

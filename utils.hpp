@@ -94,4 +94,18 @@ static inline bool _Change(QSizeF &value, const QSizeF &new_) {
 template<typename T>
 static inline bool _InRange(const T &min, const T &v, const T &max) { return min <= v && v <= max; }
 
+static inline QMetaMethod _FindMethod(const QMetaObject &mo, const char *name) {
+	for (int i=0; i<mo.methodCount(); ++i) {
+		auto method = mo.method(i);
+		if (!qstrcmp(method.name(), name))
+			return method;
+	}
+	return QMetaMethod();
+}
+
+template<typename T>
+static inline QMetaMethod _FindMethod(const char *name) { return _FindMethod(T::staticMetaObject, name); }
+
+static inline QMetaMethod _FindMethod(const QObject *object, const char *name) { return _FindMethod(*object->metaObject(), name); }
+
 #endif // UTILS_HPP

@@ -1,9 +1,25 @@
 #include "itemlistitem.hpp"
-#include <QQmlComponent>
-#include <QQmlContext>
-#include <QQmlEngine>
-#include <QQuickWindow>
 #include "utils.hpp"
+#include "actionitem.hpp"
+
+ItemListAttached::ItemListAttached(QObject *parent)
+: QObject(parent) {
+	m_attachee = parent;
+	if (auto action = qobject_cast<ActionItem*>(m_attachee)) {
+		m_interactive = true;
+		connect(this, &ItemListAttached::clicked, action, &ActionItem::triggered);
+	}
+}
+
+ItemListAttached::ItemListAttached(bool separator, QObject *parent)
+: QObject(parent), m_separator(separator) {
+	Q_ASSERT(m_separator);
+	m_vpad = m_hpad = 0.0;
+	m_thickness = Theme::separator();
+	m_color = Theme::separatorColor();
+	m_interactive = false;
+	m_attachee = this;
+}
 
 static inline qreal pick(qreal v, qreal fallback) { return v < 0 ? fallback : v; }
 template<typename T>
@@ -51,7 +67,7 @@ struct ItemListItem::Data {
 	QVector<ItemPos> rects;
 	int rectCount = 0;
 	QColor originalColor;
-	qreal vpad = 0, hpad = 0, minimum = 0;
+	qreal vpad = 0, hpad = 0, minimum = 0, length = -1;
 	ItemListSeparator *getSeparator(ItemListSeparator *candidate) const {
 		return pick(candidate, const_cast<ItemListSeparator*>(&separator));
 	}
@@ -81,6 +97,7 @@ struct ItemListItem::Data {
 		connect(attached, &ItemListAttached::verticalPaddingChanged, p, &ItemListItem::polishAndUpdate);
 		connect(attached, &ItemListAttached::horizontalPaddingChanged, p, &ItemListItem::polishAndUpdate);
 		connect(attached, &ItemListAttached::colorChanged, p, &ItemListItem::handleItemColorChanged);
+		connect(p, &ItemListItem::orientationChanged, attached, &ItemListAttached::setOrientation);
 	}
 	template<typename Attached>
 	bool changeAttached(Attached *&attached, QObject *object) {
@@ -157,9 +174,12 @@ struct ItemListItem::Data {
 		qreal filled = 0;
 		auto calculate = [&filled, &fills, this] (const ItemListAttached *attached) {
 			filled += 2*O::padding(p, attached);
-			if (attached->thickness() < 0)
-				++fills;
-			else
+			if (attached->thickness() < 0) {
+				if (length < 0)
+					++fills;
+				else
+					filled += length;
+			} else
 				filled += attached->thickness();
 		};
 		runLayoutLoop(calculate);
@@ -167,7 +187,14 @@ struct ItemListItem::Data {
 		auto it = rects.begin();
 		qreal pos = 0;
 		auto append = [&it, &pos, fill, this] (ItemListAttached *attached) {
-			const qreal total = pick(attached->thickness(), fill) + 2*O::padding(p, attached);
+			qreal total = 2*O::padding(p, attached);
+			if (attached->thickness() < 0) {
+				if (length < 0)
+					total += fill;
+				else
+					total += length;
+			} else
+				total += attached->thickness();
 			attached->fill(total);
 			if (attached->isQmlItem()) {
 				const auto vpad = pick(attached->verticalPadding(), this->vpad);
@@ -253,6 +280,7 @@ QQmlListProperty<QObject> ItemListItem::readOnlyList() const {
 void ItemListItem::append(QObject *obj) {
 	auto attached = d->attach(obj);
 	attached->setIndex(d->list.size());
+	attached->setOrientation(d->orientation);
 	d->list.append(attached);
 }
 
@@ -334,7 +362,7 @@ void ItemListItem::mousePressEvent(QMouseEvent *event) {
 		d->pressed = d->contains<HorizontalOrientation>(event->localPos());
 	else
 		d->pressed = d->contains<VerticalOrientation>(event->localPos());
-	if (d->pressed.attached && d->pressed.attached->isInteractive()) {
+	if (d->pressed.attached && d->pressed.attached->canInteract()) {
 		d->originalColor = d->pressed.attached->color();
 		d->pressed.attached->setColor(d->highlight);
 	}
@@ -342,13 +370,13 @@ void ItemListItem::mousePressEvent(QMouseEvent *event) {
 
 void ItemListItem::mouseReleaseEvent(QMouseEvent *event) {
 	TextureItem::mouseReleaseEvent(event);
-	if (d->pressed.attached && d->pressed.attached->isInteractive()) {
+	if (d->pressed.attached && d->pressed.attached->canInteract()) {
 		QRectF rect;
 		if (d->orientation == Qt::Horizontal)
 			rect = HorizontalOrientation::vertexRect(this, d->pressed);
 		else
 			rect = VerticalOrientation::vertexRect(this, d->pressed);
-		if (rect.contains(event->localPos()) && d->pressed.attached->isQmlItem()) {
+		if (rect.contains(event->localPos())) {
 			emit d->pressed.attached->clicked();
 			emit clicked(static_cast<QQuickItem*>(d->pressed.attached->attachee()));
 		}
@@ -394,7 +422,7 @@ Qt::Orientation ItemListItem::orientation() const {
 
 void ItemListItem::setOrientation(Qt::Orientation o) {
 	if (d->changeAndPolish(d->orientation, o))
-		emit orientationChanged();
+		emit orientationChanged(o);
 }
 
 ItemListSeparator *ItemListItem::headerSeparator() const {
@@ -454,5 +482,16 @@ void ItemListItem::setHighlight(const QColor &color) {
 		if (d->pressed.attached && d->pressed.attached->isInteractive())
 			d->pressed.attached->setColor(d->highlight);
 		emit highlightChanged();
+	}
+}
+
+qreal ItemListItem::fixedItemLength() const {
+	return d->length;
+}
+
+void ItemListItem::setFixedItemLength(qreal width) {
+	if (_Change(d->length, width)) {
+		polishAndUpdate();
+		emit fixedItemLengthChanged();
 	}
 }

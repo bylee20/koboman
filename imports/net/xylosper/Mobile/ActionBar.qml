@@ -2,31 +2,24 @@ import QtQuick 2.2
 import net.xylosper.Mobile 1.0
 
 Rectangle {
-	width: parent.width; height: parent.height; color: Theme.background
+	id: bar
+	width: parent.width; height: Theme.lineHeight; color: Theme.background
 	Rectangle {
 		width: parent.width; height: Theme.separatorThick
 		anchors.bottom: parent.bottom
 		color: Theme.separatorColor
 	}
+	property alias actions: actionList.items
 
 	ItemList {
-		anchors.fill: parent
-		color: "#9900ccff"
+		id: actionList
+		height: parent.height
+		width: minimumLength
+		orientation: Qt.Horizontal
+		fixedItemLength: Theme.lineHeight
+		separator.thickness: 0
+		anchors.right: parent.right
 	}
-
-
-//	property list<Item> buttons
-//	property Item contentItem
-//	onButtonsChanged: {
-//		for (var i=0; i<buttons.length; ++i)
-//			buttons[i].parent = layout
-//	}
-//	onContentItemChanged: if (contentItem) contentItem.parent = container
-//	Rectangle {
-//		anchors.bottom: parent.bottom; width: parent.width; height: parent.height*0.0375; color: "#C2C2C2"
-//	}
-//	RowLayout {
-//		id: layout; anchors.fill: parent
-//		Item { id: container; Layout.fillWidth: true; Layout.fillHeight: true }
-//	}
+	property Item contentItem
+	onContentItemChanged: if (contentItem) contentItem.parent = bar
 }

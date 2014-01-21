@@ -6,34 +6,10 @@ import net.xylosper.Mobile 1.0 as Mobile
 import "net.xylosper.Android" as Android
 import KoboMan 1.0
 
-//// some colors
-//// light blue: "#33B5E5"
-//// dark blue: "#0099CC"
-
 Android.App {
 	id: window
 	width: 360
 	height: 640
-	focus: true
-
-
-
-//	Mobile.TopLevel {
-//		id: top
-//		visible: true
-//		container.padding: 10
-//		container.position: Qt.point(50, 50)
-//		container.attach: over
-//		container.item: Rectangle {
-//				id: rect
-//				color: "skyblue"
-//							width: 200; height: 100
-
-//				focus: true
-
-//				scale: 1.0
-//			}
-//	}
 
 	Component.onCompleted: {
 		if (BookList.lastWorkingFile.length > 0) {
@@ -74,7 +50,41 @@ Android.App {
 //	}
 
 	actionBar: Mobile.ActionBar {
-		height: 200
+		actions: [
+			Mobile.Action {
+				enabled: scanner.visible
+				icon: scanner.torch ? "qrc:///icon/ic_action_flash_off.png"
+									: "qrc:///icon/ic_action_flash_on.png"
+				onTriggered: scanner.torch = !scanner.torch
+
+			},
+			Mobile.Action {
+				enabled: !scanner.scanning
+				icon: "qrc:///icon/ic_action_camera.png"
+				onTriggered: {
+					scanner.visible = true
+					scanner.scanning = true
+				}
+
+			},
+			Mobile.Action {
+				id: over
+				icon: "qrc:///icon/ic_action_overflow.png"
+				menu: Mobile.Menu {
+					actions: [
+						Mobile.Action {
+							text: qsTr("작업 파일 열기")
+							onTriggered: fileDialog.show()
+						},
+						Mobile.Action {
+							text: qsTr("도서 원부 불러오기")
+							onTriggered: Library.import_()
+						}
+					]
+				}
+
+			}
+		]
 	}/*Android.ActionBar {
 		contentItem: ColumnLayout {
 			anchors.fill: parent
