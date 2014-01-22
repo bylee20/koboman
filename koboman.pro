@@ -26,7 +26,7 @@ SOURCES += main.cpp \
     barcodescanner.cpp \
     barcodescannerthread.cpp \
     barcode.cpp \
-    utility.cpp \
+    items/utility.cpp \
     library.cpp \
     booklistmodel.cpp \
     items/toplevelitem.cpp \
@@ -36,7 +36,9 @@ SOURCES += main.cpp \
     items/textlistitem.cpp \
     items/buttonboxitem.cpp \
     items/themeapi.cpp \
-    items/actionitem.cpp
+    items/actionitem.cpp \
+    items/busyitem.cpp \
+    items/itemlistattached.cpp
 
 # Installation path
 # target.path =
@@ -63,7 +65,7 @@ HEADERS += \
     barcodescannerthread.hpp \
     barcode.hpp \
     utils.hpp \
-    utility.hpp \
+    items/utility.hpp \
     library.hpp \
     booklistmodel.hpp \
     items/toplevelitem.hpp \
@@ -73,12 +75,14 @@ HEADERS += \
     items/textlistitem.hpp \
     items/buttonboxitem.hpp \
     items/themeapi.hpp \
-    items/actionitem.hpp
+    items/actionitem.hpp \
+    items/busyitem.hpp \
+    items/itemlistattached.hpp
 
 INCLUDEPATH += zbar
 
 CONFIG += C++11
-QT += multimedia multimediawidgets widgets opengl network xml sql
+QT += multimedia multimediawidgets opengl network xml sql
 
 ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
 

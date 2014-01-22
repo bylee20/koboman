@@ -14,10 +14,12 @@ public:
 	using RenderState = QSGMaterialShader::RenderState;
 	TextureItem(QQuickItem *parent = nullptr);
 	~TextureItem();
+public slots:
+	void polishAndUpdate() { polish(); update(); }
 protected:
 	virtual QByteArray fragmentShader() const = 0;
 	virtual QByteArray vertexShader() const = 0;
-	virtual ShaderId *shaderId() const { return &m_type; }
+	virtual ShaderId *shaderId() const final { return &m_type; }
 	virtual const char *const *attributeNames() const;
 	virtual void link(QOpenGLShaderProgram *prog);
 	virtual void bind(QOpenGLShaderProgram *prog, const RenderState &state);

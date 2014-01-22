@@ -1,5 +1,5 @@
 import QtQuick 2.2
-import KoboMan 1.0
+import net.xylosper.Mobile 1.0
 
 Item {
 	id: item; opacity: 0; width: Utility.dpToPx(30)

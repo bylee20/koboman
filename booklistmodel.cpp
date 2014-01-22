@@ -1,5 +1,5 @@
 #include "booklistmodel.hpp"
-#include "utility.hpp"
+#include "items/utility.hpp"
 #include "library.hpp"
 #include <QStandardPaths>
 #include <QDateTime>

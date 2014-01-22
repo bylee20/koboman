@@ -10,8 +10,6 @@ class TextListItem : public ItemListItem {
 	Q_PROPERTY(QFont font READ font WRITE setFont NOTIFY fontChanged FINAL)
 	Q_PROPERTY(Qt::AlignmentFlag verticalAlignment READ verticalAlignment WRITE setVerticalAlignment NOTIFY verticalAlignmentChanged FINAL)
 	Q_PROPERTY(Qt::AlignmentFlag horizontalAlignment READ horizontalAlignment WRITE setHorizontalAlignment NOTIFY horizontalAlignmentChanged FINAL)
-	Q_PROPERTY(bool interactive READ isInteractive WRITE setInteractive  NOTIFY interactiveChanged)
-	Q_PROPERTY(qreal textHeight READ textHeight WRITE setTextHeight NOTIFY textHeightChanged)
 public:
 	TextListItem(QQuickItem *parent = nullptr);
 	~TextListItem();
@@ -23,21 +21,14 @@ public:
 	Qt::AlignmentFlag horizontalAlignment() const;
 	void setVerticalAlignment(Qt::AlignmentFlag alignment);
 	void setHorizontalAlignment(Qt::AlignmentFlag alignment);
-	bool isInteractive() const;
-	void setInteractive(bool interactive);
-	qreal textHeight() const;
-	void setTextHeight(qreal height);
 signals:
-	void textHeightChanged();
-	void interactiveChanged();
 	void horizontalAlignmentChanged();
 	void verticalAlignmentChanged();
 	void fontChanged();
 	void textsChanged();
 	void itemsChanged();
 protected:
-	virtual QByteArray sourceCode() const;
-	void setText(int index, const QString &text);
+	void setText(int indexOf, const QString &text);
 private:
 	struct Data;
 	Data *d;

@@ -84,15 +84,19 @@ struct BarcodeScanner::Data {
 		if (crop && !size.isEmpty()) {
 			size.scale(rect.size(), Qt::KeepAspectRatioByExpanding);
 			vtxRect = rect;
-			texRect.setBottomRight({ rect.width()/size.width(), rect.height()/size.height()});
+			const auto x = (size.width() - rect.width())*0.5/size.width();
+			const auto y = (size.height() - rect.height())*0.5/size.height();
+			texRect.setTopLeft({x, y});
+			texRect.setBottomRight({1.0 - x, 1.0 - y});
+//			texRect.setBottomRight({ , rect.height()/size.height()});
+//			texRect = {0.0, 0..setBottomRight({1.0, 1.0});
 		} else {
 			size.scale(rect.size(), Qt::KeepAspectRatio);
 			vtxRect.setSize(size);
 			vtxRect.moveCenter(rect.center());
-			texRect.setBottomRight({1.0, 1.0});
+			texRect = {0.0, 0.0, 1.0, 1.0};
 		}
 		vtxRect.translate(0, -rect.y());
-		texRect.moveCenter({0.5, 0.5});
 		dirtyGeometry = true;
 	}
 
@@ -207,6 +211,10 @@ QQmlListProperty<BarcodeObject> BarcodeScanner::barcodeObjects() const {
 	return QQmlListProperty<BarcodeObject>(const_cast<BarcodeScanner*>(this), nullptr, count, at);
 }
 
+int BarcodeScanner::deviceCount() const {
+	return d->devices.size();
+}
+
 BarcodeList BarcodeScanner::barcodes() const {
 	return d->barcodes;
 }
@@ -272,6 +280,8 @@ QString BarcodeScanner::deviceDescription() const {
 void BarcodeScanner::setDevice(int device) {
 	if (d->device != device) {
 		d->createCamera(d->device = device);
+		d->updateCameraState();
+		d->updateTorch();
 		emit deviceChanged();
 		update();
 	}
@@ -356,6 +366,7 @@ QSGNode *BarcodeScanner::updatePaintNode(QSGNode *old, UpdatePaintNodeData */*da
 		d->node->markDirty(QSGNode::DirtyGeometry);
 		d->dirtyGeometry = false;
 	}
+
 	return d->node;
 }
 

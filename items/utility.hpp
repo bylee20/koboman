@@ -3,9 +3,12 @@
 
 #include <QObject>
 #include <QFont>
+#include <QStringList>
 
 class QQuickItem;
 class QQuickView;
+class QQmlEngine;
+class QJSEngine;
 
 class Utility : public QObject {
 	Q_OBJECT
@@ -43,19 +46,26 @@ public:
 	Q_INVOKABLE static qreal pxToDp(qreal px) { return px*m_p2d; }
 	Q_INVOKABLE static qreal dpToPx(qreal dp) { return dp*m_d2p; }
 	Q_INVOKABLE static QString storage() { return m_storage; }
+	Q_INVOKABLE static QStringList files(const QStringList &nameFilter, const QString &folder);
+	Q_INVOKABLE static QStringList files(const QStringList &nameFilter) { return files(nameFilter, QString()); }
 	qreal dpi() const { return m_dpi; }
 	static QQuickItem *createItem(const QByteArray &name, QQuickItem *parent = nullptr);
 	static QQuickItem *root() { return m_root; }
 	static void initialize(QQuickView *window);
+	static void registerTypes();
+	template<typename T>
+	static QObject *singletonProvider(QQmlEngine*, QJSEngine*) { return new T; }
 #define DP(i) static qreal dp##i() { return dpToPx(i); }
 	DP(  1)DP(  2)DP(  3)DP(  4)DP(  5)DP(  6)DP(  7)DP(  8)DP(  9)
 	DP( 10)DP( 20)DP( 30)DP( 40)DP( 50)DP( 60)DP( 70)DP( 80)DP( 90)
 	DP(100)DP(200)DP(300)DP(400)DP(500)DP(600)DP(700)DP(800)DP(900)
 #undef DP
 private:
+	bool eventFilter(QObject *object, QEvent *event);
 	static qreal m_p2d, m_d2p, m_dpi;
 	static QString m_storage;
 	static QQuickItem *m_root;
+	bool m_sending = false;
 };
 
 #endif // UTILITY_HPP

@@ -15,6 +15,7 @@ ButtonBoxItem::ButtonBoxItem(QQuickItem *parent)
 		buttonTexts[Cancel] = trUtf8("취소");
 		buttonTexts[Yes] = trUtf8("예");
 		buttonTexts[No] = trUtf8("아니오");
+		buttonTexts[Open] = trUtf8("열기");
 	}
 	connect(this, &ItemListItem::clicked, this, &ButtonBoxItem::handleItemClicked);
 	setVerticalAlignment(Qt::AlignVCenter);
@@ -26,7 +27,7 @@ ButtonBoxItem::~ButtonBoxItem() {
 }
 
 void ButtonBoxItem::handleItemClicked(QQuickItem *item) {
-	const int index = attached(item, false)->index();
+	const int index = this->indexOf(item);
 	if (_InRange(0, index, d->buttons.size()-1))
 		emit triggered(d->buttons[index]);
 }
@@ -60,4 +61,8 @@ void ButtonBoxItem::setCustomButtonText(const QString &text) {
 			setText(index, d->customButtonText);
 		emit customButtonTextChanged();
 	}
+}
+
+QQuickItem *ButtonBoxItem::button(Button button) const {
+	return itemAt(d->buttons.indexOf(button));
 }

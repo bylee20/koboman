@@ -59,6 +59,7 @@ struct TextureItem::Data {
 TextureItem::TextureItem(QQuickItem *parent)
 : QQuickItem(parent), d(new Data) {
 	d->p = this;
+	setFlag(ItemHasContents);
 	d->setWindow(window());
 	connect(this, &QQuickItem::windowChanged, [this] (QQuickWindow *w) { d->setWindow(w); });
 }

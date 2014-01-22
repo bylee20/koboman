@@ -4,5 +4,6 @@
         <file>icon/ic_action_flash_on.png</file>
         <file>icon/ic_action_overflow.png</file>
         <file>icon/ic_action_camera.png</file>
+        <file>icon/ic_action_switch_camera.png</file>
     </qresource>
 </RCC>

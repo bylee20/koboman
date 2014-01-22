@@ -1,43 +1,29 @@
-import QtQuick 2.1
-import QtQuick.Controls 1.1
-import QtQuick.Layouts 1.1
-import QtQuick.Controls.Styles 1.1
-import net.xylosper.Mobile 1.0 as Mobile
+import QtQuick 2.2
+import net.xylosper.Mobile 1.0
 
-Mobile.TopLevel {
+TopLevel {
 	id: busy
 	autohide: false
 	shade: 0.6
 	property alias text: msg.text
-	property alias textWidth: msg.width
 	BusyIndicator {
-		id: ind
+		id: indicator
+		width: Utility.dpToPx(150); height: width
 		anchors.centerIn: parent
-		width: Utility.dpToPx(100); height: width
-		running: visible
-		style: BusyIndicatorStyle {
-			indicator: Image {
-				visible: control.running
-				source: "busy.png"
-				NumberAnimation on rotation {
-					running: control.running
-					loops: Animation.Infinite
-					duration: 1000
-					from: 0 ; to: 360
-				}
-			}
-		}
 	}
-
 	Text {
 		id: msg
-		anchors.top: ind.bottom
-		anchors.topMargin: Utility.dpToPx(30)
-		anchors.horizontalCenter: parent.horizontalCenter
-		width: parent.width - Utility.dpToPx(70)
-		color: "#33B5E5"
-		wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+		color: Theme.highlight
+		anchors {
+			top: indicator.bottom
+			bottom: parent.bottom
+			left: parent.left
+			right: parent.right
+			margins: Theme.padding*2
+		}
 		verticalAlignment: Text.AlignVCenter
 		horizontalAlignment: Text.AlignHCenter
+		font.pixelSize: Theme.textSizeLarge
+		wrapMode: Text.WrapAtWordBoundaryOrAnywhere
 	}
 }

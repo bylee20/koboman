@@ -1,6 +1,6 @@
 #include "barcodescannerthread.hpp"
 #include "zbar.h"
-#include "utility.hpp"
+#include "items/utility.hpp"
 #include <QMutex>
 #include <QDebug>
 #include <QImage>
@@ -102,7 +102,7 @@ static inline void saveTest(BarcodeScannerImagePtr y8) {
 		}
 	}
 	static int i=0;	++i;
-	qDebug() << i <<image.save(Utility::storage() + QString::number(i) + ".jpg");
+	qDebug() << i <<image.save(Utility::storage() + '/' + QString::number(i) + ".jpg");
 }
 
 void BarcodeScannerThread::run() {

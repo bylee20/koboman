@@ -1,5 +1,5 @@
 #include "library.hpp"
-#include "utility.hpp"
+#include "items/utility.hpp"
 #include <QFile>
 #include <QSqlDatabase>
 #include <QSqlQuery>

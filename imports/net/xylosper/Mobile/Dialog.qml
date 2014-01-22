@@ -10,8 +10,12 @@ TopLevel {
 	property alias contentHeight: item.height
 	readonly property alias minimumHeight: item.minimumLength
 	signal returned(int result)
+	function button(b) { return bbox.button(b); }
 	container.item: ItemList {
 		id: item
+		width: dialog.width*0.75
+		height: minimumLength
+		interactive: false
 		orientation: Qt.Vertical
 		separator {
 			color: "#575D62"
@@ -34,6 +38,7 @@ TopLevel {
 			ItemList.thickness: font.pixelSize + Utility.dp40
 			highlight: "#33B5E5"
 			orientation: Qt.Horizontal
+			fixedItemLength: -1
 			buttons: [ ButtonBox.Ok ]
 			onTriggered: {
 				dialog.hide()

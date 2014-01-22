@@ -45,7 +45,6 @@ private slots:
 private:
 	void componentComplete();
 	void geometryChanged(const QRectF &new_, const QRectF &old);
-	QSGMaterialType *shaderId() const { static QSGMaterialType type; return &type; }
 	QByteArray fragmentShader() const;
 	QByteArray vertexShader() const;
 	void bind(QOpenGLShaderProgram *prog, const RenderState &state);

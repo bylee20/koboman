@@ -5,34 +5,13 @@
 #include "barcodescanner.hpp"
 #include "booklistmodel.hpp"
 #include "library.hpp"
-#include "utility.hpp"
+#include "items/utility.hpp"
 #include "items/themeapi.hpp"
-#include "items/toplevelitem.hpp"
-#include "items/toplevelcontainer.hpp"
-#include "items/itemlistitem.hpp"
-#include "items/textlistitem.hpp"
-#include "items/buttonboxitem.hpp"
-#include "items/actionitem.hpp"
-
-template<typename T>
-static QObject *singletonProvider(QQmlEngine*, QJSEngine*) { return new T; }
 
 int main(int argc, char *argv[]) {
 	QGuiApplication app(argc, argv);
 
-	qmlRegisterType<ItemListAttached>();
-	qmlRegisterType<ActionItem>("net.xylosper.Mobile", 1, 0, "Action");
-	qmlRegisterType<TopLevelItem>("net.xylosper.Mobile", 1, 0, "TopLevel");
-	qmlRegisterType<ItemListItem>("net.xylosper.Mobile", 1, 0, "ItemList");
-	qmlRegisterType<TextListItem>("net.xylosper.Mobile", 1, 0, "TextList");
-	qmlRegisterType<ButtonBoxItem>("net.xylosper.Mobile", 1, 0, "ButtonBox");
-	qmlRegisterType<ItemListSeparator>("net.xylosper.Mobile", 1, 0, "ItemListSeparator");
-	qmlRegisterUncreatableType<TopLevelContainer>("net.xylosper.Mobile", 1, 0, "TopLevelContainer", "wrong");
-	qmlRegisterUncreatableType<TopLevelShadow>("net.xylosper.Mobile", 1, 0, "TopLevelContainerShadow", "wrong");
-	qmlRegisterSingletonType<Theme>("net.xylosper.Mobile", 1, 0, "Theme", singletonProvider<Theme>);
-	qmlRegisterSingletonType<Utility>("KoboMan", 1, 0, "Utility", singletonProvider<Utility>);
-	qmlRegisterSingletonType<Utility>("net.xylosper.Mobile", 1, 0, "Utility", singletonProvider<Utility>);
-
+	Utility::registerTypes();
 	qmlRegisterType<BarcodeObject>("KoboMan", 1, 0, "Barcode");
 	qmlRegisterType<BarcodeScanner>("KoboMan", 1, 0, "BarcodeScanner");
 

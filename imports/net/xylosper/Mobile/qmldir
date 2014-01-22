@@ -2,5 +2,8 @@ module net.xylosper.Mobile
 Dialog			1.0 Dialog.qml
 MessageBox              1.0 MessageBox.qml
 Menu                    1.0 Menu.qml
-#Action                  1.0 Action.qml
+App                     1.0 App.qml
 ActionBar               1.0 ActionBar.qml
+Busy                    1.0 Busy.qml
+FileDialog              1.0 FileDialog.qml
+ScrollBar               1.0 ScrollBar.qml

@@ -1,31 +1,15 @@
 #include "itemlistitem.hpp"
+#include "itemlistattached.hpp"
 #include "utils.hpp"
 #include "actionitem.hpp"
-
-ItemListAttached::ItemListAttached(QObject *parent)
-: QObject(parent) {
-	m_attachee = parent;
-	if (auto action = qobject_cast<ActionItem*>(m_attachee)) {
-		m_interactive = true;
-		connect(this, &ItemListAttached::clicked, action, &ActionItem::triggered);
-	}
-}
-
-ItemListAttached::ItemListAttached(bool separator, QObject *parent)
-: QObject(parent), m_separator(separator) {
-	Q_ASSERT(m_separator);
-	m_vpad = m_hpad = 0.0;
-	m_thickness = Theme::separator();
-	m_color = Theme::separatorColor();
-	m_interactive = false;
-	m_attachee = this;
-}
 
 static inline qreal pick(qreal v, qreal fallback) { return v < 0 ? fallback : v; }
 template<typename T>
 static inline T *pick(T *v, T *fallback) { return v ? v : fallback; }
 
 struct ItemPos {
+	operator bool () const { return attached != nullptr; }
+	ItemListAttached *operator -> () { return attached; }
 	ItemListAttached *attached = nullptr;
 	qreal pos = 0.0;
 };
@@ -58,15 +42,17 @@ struct HorizontalOrientation {
 
 struct ItemListItem::Data {
 	ItemListItem *p = nullptr;
-	QColor highlight = Theme::highlight();
+	bool interactive = false;
+	SelectionMode selectionMode = NoSelection;
+	QColor highlight = Theme::highlight(), selection;
 	Qt::Orientation orientation = Qt::Vertical;
 	QList<ItemListAttached*> list;
+	QList<ItemListAttached*> selections;
 	ItemPos pressed;
 	ItemListAttached *headerAttached = nullptr, *footerAttached = nullptr;
 	ItemListSeparator separator, *headerSeparator = nullptr, *footerSeparator = nullptr;
 	QVector<ItemPos> rects;
 	int rectCount = 0;
-	QColor originalColor;
 	qreal vpad = 0, hpad = 0, minimum = 0, length = -1;
 	ItemListSeparator *getSeparator(ItemListSeparator *candidate) const {
 		return pick(candidate, const_cast<ItemListSeparator*>(&separator));
@@ -83,6 +69,7 @@ struct ItemListItem::Data {
 				attached = p->attached(item, true);
 			item->setParentItem(p);
 			connect(item, &QQuickItem::visibleChanged, p, &ItemListItem::polishAndUpdate);
+			connect(item, &QQuickItem::enabledChanged, p, &ItemListItem::handleEnabledChanged);
 		} else {
 			attached = static_cast<ItemListSeparator*>(object);
 			Q_ASSERT(attached->isSeparator());
@@ -96,7 +83,8 @@ struct ItemListItem::Data {
 		connect(attached, &ItemListAttached::thicknessChanged, p, &ItemListItem::polishAndUpdate);
 		connect(attached, &ItemListAttached::verticalPaddingChanged, p, &ItemListItem::polishAndUpdate);
 		connect(attached, &ItemListAttached::horizontalPaddingChanged, p, &ItemListItem::polishAndUpdate);
-		connect(attached, &ItemListAttached::colorChanged, p, &ItemListItem::handleItemColorChanged);
+		connect(attached, &ItemListAttached::colorChanged, p, &ItemListItem::forceToUpdateGeometry);
+		connect(attached, &ItemListAttached::selectedChanged, p, &ItemListItem::handleSelectionChanged);
 		connect(p, &ItemListItem::orientationChanged, attached, &ItemListAttached::setOrientation);
 	}
 	template<typename Attached>
@@ -122,9 +110,9 @@ struct ItemListItem::Data {
 	}
 
 	void releaseMouse() {
-		if (pressed.attached && pressed.attached->isInteractive()) {
-			pressed.attached->setColor(originalColor);
+		if (pressed) {
 			pressed = ItemPos();
+			p->forceToUpdateGeometry();
 		}
 	}
 	bool isHeaderVisible() const { return headerAttached && headerAttached->asItem()->isVisible(); }
@@ -219,16 +207,27 @@ struct ItemListItem::Data {
 	void updateVertex(QSGGeometry *geometry) {
 		int size = 0;
 		for (int i=0; i<rectCount; ++i) {
-			if (rects[i].attached->needsVertex())
+			auto attached = rects[i].attached;
+			if (attached->filling() > 0 && (attached == pressed.attached || attached->isSelected() || attached->color().alpha()))
 				size += 6;
 		}
 		geometry->allocate(size);
 		if (size > 0) {
 			auto v = geometry->vertexDataAsColoredPoint2D();
+			QColor color;
 			for (int i=0; i<rectCount; ++i) {
-				const auto &item = rects[i];
-				if (item.attached->needsVertex())
-					v = fillColoredPointAsTriangle(v, O::vertexRect(p, item), item.attached->color());
+				const auto &item = rects[i]; const auto attached = item.attached;
+				if (attached->filling() <= 0)
+					continue;
+				if (attached == pressed.attached)
+					color = highlight;
+				else if (attached->isSelected())
+					color = selection;
+				else if (!attached->color().alpha())
+					continue;
+				else
+					color = attached->color();
+				v = fillColoredPointAsTriangle(v, O::vertexRect(p, item), color);
 			}
 		}
 	}
@@ -257,7 +256,8 @@ struct ItemListItem::Data {
 ItemListItem::ItemListItem(QQuickItem *parent)
 : TextureItem(parent), d(new Data) {
 	d->p = this;
-	setFlag(ItemHasContents);
+	d->selection = d->highlight;
+	d->selection.setAlphaF(0.6);
 	setAcceptedMouseButtons(Qt::LeftButton);
 	connect(this, &ItemListItem::horizontalPaddingChanged, this, &ItemListItem::polishAndUpdate);
 	connect(this, &ItemListItem::verticalPaddingChanged, this, &ItemListItem::polishAndUpdate);
@@ -265,6 +265,54 @@ ItemListItem::ItemListItem(QQuickItem *parent)
 
 ItemListItem::~ItemListItem() {
 	delete d;
+}
+
+void ItemListItem::handleSelectionChanged() {
+	auto attached = static_cast<ItemListAttached*>(sender());
+	Q_ASSERT(attached != nullptr);
+	bool clear = false;
+	if (d->selectionMode == SingleSelection) {
+		if (attached->isSelected()) {
+			Q_ASSERT(d->selections.size() < 2);
+			if (d->selections.isEmpty())
+				d->selections.append(attached);
+			else {
+				d->selections[0]->selection() = false;
+				d->selections[0] = attached;
+			}
+		} else
+			clear = true;
+	} else if (d->selectionMode == MultiSelection) {
+		if (attached->isSelected())
+			d->selections.append(attached);
+		else
+			d->selections.removeOne(attached);
+	} else
+		clear = true;
+	if (clear)
+		clearSelections();
+	else {
+		emit selectionsChanged();
+		forceToUpdateGeometry();
+	}
+}
+
+QQmlListProperty<QQuickItem> ItemListItem::selections() const {
+	static auto count = [] (QQmlListProperty<QQuickItem> *list) -> int {
+		return static_cast<ItemListItem*>(list->object)->d->selections.size();
+	};
+	static auto at = [] (QQmlListProperty<QQuickItem> *list, int index) -> QQuickItem * {
+		return static_cast<ItemListItem*>(list->object)->d->selections.at(index)->asItem();
+	};
+	return QQmlListProperty<QQuickItem>(const_cast<ItemListItem*>(this), nullptr, count, at);
+}
+
+ItemListAttached *ItemListItem::attached(QQuickItem *item, bool create) {
+	return static_cast<ItemListAttached*>(qmlAttachedPropertiesObject<ItemListItem>(item, create));
+}
+
+ItemListAttached *ItemListItem::qmlAttachedProperties(QObject *parent) {
+	return new ItemListAttached(parent);
 }
 
 QQmlListProperty<QObject> ItemListItem::list() const {
@@ -290,9 +338,15 @@ void ItemListItem::clear() {
 	d->list.clear();
 }
 
-void ItemListItem::handleItemColorChanged() {
+void ItemListItem::forceToUpdateGeometry() {
 	setGeometryDirty();
 	update();
+}
+
+void ItemListItem::handleEnabledChanged() {
+	auto item = static_cast<QQuickItem*>(sender());
+	Q_ASSERT(item != nullptr);
+	item->setOpacity(item->isEnabled() ? 1.0 : 0.3);
 }
 
 QByteArray ItemListItem::fragmentShader() const {
@@ -357,31 +411,35 @@ ItemListSeparator *ItemListItem::separator() const {
 void ItemListItem::mousePressEvent(QMouseEvent *event) {
 	TextureItem::mousePressEvent(event);
 	event->accept();
-	d->releaseMouse();
+	ItemPos pressed;
 	if (d->orientation == Qt::Horizontal)
-		d->pressed = d->contains<HorizontalOrientation>(event->localPos());
+		pressed = d->contains<HorizontalOrientation>(event->localPos());
 	else
-		d->pressed = d->contains<VerticalOrientation>(event->localPos());
-	if (d->pressed.attached && d->pressed.attached->canInteract()) {
-		d->originalColor = d->pressed.attached->color();
-		d->pressed.attached->setColor(d->highlight);
+		pressed = d->contains<VerticalOrientation>(event->localPos());
+	if (pressed && !pressed->canInteract())
+		pressed = ItemPos();
+	if (d->pressed.attached != pressed.attached) {
+		d->pressed = pressed;
+		forceToUpdateGeometry();
 	}
 }
 
 void ItemListItem::mouseReleaseEvent(QMouseEvent *event) {
 	TextureItem::mouseReleaseEvent(event);
-	if (d->pressed.attached && d->pressed.attached->canInteract()) {
+	if (d->pressed) {
 		QRectF rect;
 		if (d->orientation == Qt::Horizontal)
 			rect = HorizontalOrientation::vertexRect(this, d->pressed);
 		else
 			rect = VerticalOrientation::vertexRect(this, d->pressed);
 		if (rect.contains(event->localPos())) {
-			emit d->pressed.attached->clicked();
-			emit clicked(static_cast<QQuickItem*>(d->pressed.attached->attachee()));
+			emit d->pressed->clicked();
+			emit clicked(static_cast<QQuickItem*>(d->pressed->attachee()));
+			if (d->selectionMode)
+				d->pressed->setSelected(true);
 		}
+		d->releaseMouse();
 	}
-	d->releaseMouse();
 }
 
 void ItemListItem::mouseUngrabEvent() {
@@ -479,7 +537,7 @@ QColor ItemListItem::highlight() const {
 
 void ItemListItem::setHighlight(const QColor &color) {
 	if (_Change(d->highlight, color)) {
-		if (d->pressed.attached && d->pressed.attached->isInteractive())
+		if (d->pressed.attached && d->pressed.attached->canInteract())
 			d->pressed.attached->setColor(d->highlight);
 		emit highlightChanged();
 	}
@@ -493,5 +551,49 @@ void ItemListItem::setFixedItemLength(qreal width) {
 	if (_Change(d->length, width)) {
 		polishAndUpdate();
 		emit fixedItemLengthChanged();
+	}
+}
+
+bool ItemListItem::isInteractive() const {
+	return d->interactive;
+}
+
+void ItemListItem::setInteractive(bool interactive) {
+	if (_Change(d->interactive, interactive))
+		emit interactiveChanged();
+}
+
+ItemListItem::SelectionMode ItemListItem::selectionMode() const {
+	return d->selectionMode;
+}
+
+void ItemListItem::setSelectionMode(SelectionMode mode) {
+	if (_Change(d->selectionMode, mode)) {
+		clearSelections();
+		emit selectionModeChanged();
+	}
+}
+
+int ItemListItem::indexOf(QQuickItem *item) const {
+	auto attached = this->attached(item, false);
+	return attached ? attached->index() : -1;
+}
+
+QQuickItem *ItemListItem::itemAt(int index) const {
+	if (index == HeaderItem)
+		return headerItem();
+	if (index == FooterItem)
+		return footerItem();
+	auto attached = d->list.value(index);
+	return attached && attached->isQmlItem() ? attached->asItem() : nullptr;
+}
+
+void ItemListItem::clearSelections() {
+	if (!d->selections.isEmpty()) {
+		for (auto one : d->selections)
+			one->selection() = false;
+		d->selections.clear();
+		emit selectionsChanged();
+		forceToUpdateGeometry();
 	}
 }

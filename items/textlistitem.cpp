@@ -1,13 +1,10 @@
 #include "textlistitem.hpp"
-#include <QQmlEngine>
-#include <QQmlContext>
-#include <QQmlComponent>
+#include "utility.hpp"
 
 static QMetaMethod mmPolishAndUpdate;
 static QMetaMethod mmTextChanged;
 
 struct TextListItem::Data {
-	QQmlComponent *component = nullptr;
 	QList<QQuickItem*> textItems;
 	QStringList texts;
 	QFont font;
@@ -23,8 +20,11 @@ struct TextListItem::Data {
 
 TextListItem::TextListItem(QQuickItem *parent)
 : ItemListItem(parent), d(new Data) {
+	if (!mmPolishAndUpdate.isValid())
+		mmPolishAndUpdate = _FindMethod<TextListItem>("polishAndUpdate");
 	d->font = Theme::font();
 	d->textHeight = Theme::lineHeight() - 2*Theme::padding();
+	setFixedItemLength(d->textHeight);
 	setVerticalPadding(Theme::padding());
 	setHorizontalPadding(Theme::padding());
 	connect(this, &ItemListItem::listChanged, this, &TextListItem::itemsChanged);
@@ -32,7 +32,6 @@ TextListItem::TextListItem(QQuickItem *parent)
 
 TextListItem::~TextListItem() {
 	qDeleteAll(d->textItems);
-	delete d->component;
 	delete d;
 }
 
@@ -40,40 +39,19 @@ QStringList TextListItem::texts() const {
 	return d->texts;
 }
 
-QByteArray TextListItem::sourceCode() const {
-	return "import QtQuick 2.2\nText { }";
-}
-
 void TextListItem::setTexts(const QStringList &texts) {
 	d->texts = texts;
-	if (!d->component) {
-		d->component = new QQmlComponent(QQmlEngine::contextForObject(this)->engine());
-		d->component->setData(sourceCode(), QUrl());
-	}
 	clear();
 	if (d->textItems.size() < texts.size()) {
 		d->textItems.reserve(texts.size());
 		while (d->textItems.size() < texts.size()) {
-			auto item = static_cast<QQuickItem*>(d->component->create());
+			auto item = Utility::createItem("Text");
 			item->setProperty("verticalAlignment", d->valign);
 			item->setProperty("horizontalAlignment", d->haligh);
 			item->setProperty("font", d->font);
-			auto attached = this->attached(item, true);
-			attached->setInteractive(true);
-			attached->setThickness(d->textHeight);
-			if (!mmPolishAndUpdate.isValid()) {
-				auto find = [] (QObject *object, const char *name) {
-					auto *mm = object->metaObject();
-					const int size = mm->methodCount();
-					for (int i=0; i<size; ++i) {
-						if (!qstrcmp(mm->method(i).name(), name))
-							return mm->method(i);
-					}
-					return QMetaMethod();
-				};
-				mmPolishAndUpdate = find(this, "polishAndUpdate");
-				mmTextChanged = find(item, "textChanged");
-			}
+			if (!mmTextChanged.isValid())
+				mmTextChanged = _FindMethod(item, "textChanged");
+			Q_ASSERT(mmTextChanged.isValid());
 			connect(item, mmTextChanged, this, mmPolishAndUpdate);
 			d->textItems.append(item);
 		}
@@ -119,31 +97,7 @@ void TextListItem::setHorizontalAlignment(Qt::AlignmentFlag alignment) {
 	}
 }
 
-bool TextListItem::isInteractive() const {
-	return d->interactive;
-}
-
-void TextListItem::setInteractive(bool interactive) {
-	if (_Change(d->interactive, interactive)) {
-		for (auto item : d->textItems)
-			attached(item, false)->setInteractive(interactive);
-		emit interactiveChanged();
-	}
-}
-
 void TextListItem::setText(int index, const QString &text) {
 	if (auto item = d->textItems.value(index))
 		item->setProperty("text", text);
-}
-
-qreal TextListItem::textHeight() const {
-	return d->textHeight;
-}
-
-void TextListItem::setTextHeight(qreal height) {
-	if (_Change(d->textHeight, height)) {
-		for (auto item : d->textItems)
-			attached(item, false)->setThickness(d->textHeight);
-		emit textHeightChanged();
-	}
 }

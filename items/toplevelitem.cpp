@@ -60,7 +60,7 @@ TopLevelItem::TopLevelItem(QQuickItem *parent)
 	setFlags(ItemHasContents | ItemIsFocusScope);
 	setAcceptedMouseButtons(Qt::AllButtons);
 	connect(this, &TopLevelItem::parentChanged, this, &TopLevelItem::updateParentItem);
-	connect(this, &TopLevelItem::focusChanged, this, &TopLevelItem::updateFocusState);
+//	connect(this, &TopLevelItem::focusChanged, this, &TopLevelItem::updateFocusState);
 	connect(this, &TopLevelItem::visibleChanged, this, &TopLevelItem::updateFocusState);
 	connect(&d->animation, &QPropertyAnimation::finished, this, &TopLevelItem::handleAnimationFinished);
 	connect(d->container, &TopLevelContainer::itemChanged, [this] () {
@@ -171,7 +171,8 @@ bool TopLevelItem::prepareToRender() {
 }
 
 void TopLevelItem::updateFocusState() {
-	setFocus(isVisible());
+	if (isVisible() != hasFocus())
+		setFocus(isVisible());
 }
 
 void TopLevelItem::updateParentItem() {
@@ -207,6 +208,7 @@ void TopLevelItem::keyReleaseEvent(QKeyEvent *event) {
 			break;
 		}
 	}
+	qDebug() << "key";
 }
 
 void TopLevelItem::geometryChanged(const QRectF &new_, const QRectF &old) {
@@ -264,7 +266,7 @@ void TopLevelItem::show() {
 		if (d->container->item())
 			d->container->item()->setScale(0.0);
 		d->checkAnimation();
-		setOpacity(1.0);
+		setOpacity(0.0);
 		setVisible(true);
 		d->animation.setDirection(QPropertyAnimation::Forward);
 		d->animation.start();

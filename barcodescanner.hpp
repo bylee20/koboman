@@ -11,14 +11,16 @@ class BarcodeScannerImage;
 
 class BarcodeScanner : public QQuickItem {
 	Q_OBJECT
-	Q_PROPERTY(int device READ device WRITE setDevice NOTIFY deviceChanged)
-	Q_PROPERTY(QString deviceDescription READ deviceDescription NOTIFY deviceChanged)
-	Q_PROPERTY(bool torch READ torch WRITE setTorch NOTIFY torchChanged)
-	Q_PROPERTY(bool scanning READ isScanning WRITE setScanning NOTIFY scanningChanged)
-	Q_PROPERTY(QQmlListProperty<BarcodeObject> barcodes READ barcodeObjects NOTIFY barcodesChanged)
+	Q_PROPERTY(int device READ device WRITE setDevice NOTIFY deviceChanged FINAL)
+	Q_PROPERTY(int deviceCount READ deviceCount CONSTANT FINAL)
+	Q_PROPERTY(QString deviceDescription READ deviceDescription NOTIFY deviceChanged FINAL)
+	Q_PROPERTY(bool torch READ torch WRITE setTorch NOTIFY torchChanged FINAL)
+	Q_PROPERTY(bool scanning READ isScanning WRITE setScanning NOTIFY scanningChanged FINAL)
+	Q_PROPERTY(QQmlListProperty<BarcodeObject> barcodes READ barcodeObjects NOTIFY barcodesChanged FINAL)
 public:
 	BarcodeScanner(QQuickItem *parent = nullptr);
 	~BarcodeScanner();
+	int deviceCount() const;
 	void setDevice(int device);
 	int device() const;
 	QString deviceDescription() const;
@@ -30,6 +32,7 @@ public:
 	bool isScanning() const;
 	void setScanning(bool scanning);
 signals:
+	void deviceCountChanged();
 	void barcodesChanged();
 	void deviceChanged();
 	void torchChanged();
