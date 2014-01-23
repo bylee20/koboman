@@ -28,6 +28,9 @@ X.App {
 	}
 
 	actionBar: X.ActionBar {
+		icon: "qrc:///icon/view-table-of-contents96.png"
+		upVisible: stackView.depth > 1
+		onUpNavigation: stackView.pop(stackView.initialItem)
 		actions: [
 			X.Action {
 				enabled: (!scanner.visible && scanner.deviceCount > 0) || (scanner.visible && scanner.deviceCount > 1)
@@ -81,7 +84,7 @@ X.App {
 		initialItem: WorkList {}
 		BarcodeScanner {
 			id: scanner; width: parent.width; height: parent.height;
-			visible: stackView.currentItem === this; device: 1
+			visible: stackView.currentItem === this; device: 0
 			onVisibleChanged: scanner.scanning = visible
 			onBarcodesChanged: {
 				for (var i=0; i<barcodes.length; ++i) {

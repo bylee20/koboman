@@ -211,10 +211,8 @@ void TopLevelContainer::complete() {
 
 void TopLevelContainer::setItem(QQuickItem *item) {
 	if (_Change(m_item, item)) {
-		if (m_item) {
+		if (m_item)
 			m_item->setParentItem(m_top);
-			m_item->setTransformOrigin(QQuickItem::Top);
-		}
 		if (m_completed) {
 			connectItem();
 			resize();
@@ -228,17 +226,18 @@ void TopLevelContainer::reposition() {
 		m_item->setPosition(m_pos + QPointF{m_padding, m_padding});
 }
 
-QRectF TopLevelContainer::rect() const {
-	QPointF pos(m_pos);
-	QSizeF size(m_size);
-	if (m_item && !qFuzzyCompare(m_item->scale(), 1.0)) {
-		const auto s = m_item->scale();
-		const auto o = m_item->mapToItem(m_top, m_item->transformOriginPoint());
-		pos = o + (pos - o)*s;
-		size *= s;
-	}
-	return QRectF(pos, size);
-}
+//QRectF TopLevelContainer::rect() const {
+//	return QRectF(m_pos, m_size);
+//	QPointF pos(m_pos);
+//	QSizeF size(m_size);
+////	if (m_item && !qFuzzyCompare(m_item->scale(), 1.0)) {
+////		const auto s = m_item->scale();
+////		const auto o = m_item->mapToItem(m_top, m_item->transformOriginPoint());
+////		pos = o + (pos - o)*s;
+////		size *= s;
+////	}
+//	return QRectF(pos, size);
+//}
 
 void TopLevelContainer::resize() {
 	QSizeF size;
@@ -248,6 +247,7 @@ void TopLevelContainer::resize() {
 	}
 	if (_Change(m_size, size)) {
 		reattach();
+		updateTransformOrigin();
 		emit rectChanged();
 	}
 }
@@ -267,9 +267,20 @@ void TopLevelContainer::connectItem() {
 		m_itemConnections << connect(m_item, &QQuickItem::xChanged, this, &TopLevelContainer::reposition)
 		<< connect(m_item, &QQuickItem::yChanged, this, &TopLevelContainer::reposition)
 		<< connect(m_item, &QQuickItem::widthChanged, this, &TopLevelContainer::resize)
-		<< connect(m_item, &QQuickItem::heightChanged, this, &TopLevelContainer::resize)
-		<< connect(m_item, &QQuickItem::scaleChanged, this, &TopLevelContainer::rectChanged);
+		<< connect(m_item, &QQuickItem::heightChanged, this, &TopLevelContainer::resize);
 	}
+}
+
+void TopLevelContainer::updateTransformOrigin() {
+	QPointF origin;
+	if (m_size.isEmpty()) {
+		origin.setX(m_top->width()*0.5);
+		origin.setY(m_top->height()*0.5);
+	} else {
+		origin.setX(m_pos.x() + m_size.width()*0.5);
+		origin.setY(m_pos.y());
+	}
+	m_top->setTransformOriginPoint(origin);
 }
 
 void TopLevelContainer::setAttach(QQuickItem *attach) {
@@ -281,7 +292,7 @@ void TopLevelContainer::setAttach(QQuickItem *attach) {
 }
 
 void TopLevelContainer::reattach() {
-	auto pos = m_attach ? m_attach->mapToItem(m_top, {0.0, m_attach->height()}) : m_position;
+	auto pos = m_attach ? m_attach->mapToScene({0.0, m_attach->height()}) : m_position;
 	const auto boundary = m_top->boundary();
 	const auto right = pos.x() + m_size.width() + boundary;
 	const auto bottom = pos.y() + m_size.height() + boundary;
@@ -291,6 +302,7 @@ void TopLevelContainer::reattach() {
 		pos.ry() -= bottom - m_top->height();
 	if (_Change(m_pos, pos)) {
 		reposition();
+		updateTransformOrigin();
 		emit rectChanged();
 	}
 }

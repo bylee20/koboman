@@ -411,6 +411,8 @@ ItemListSeparator *ItemListItem::separator() const {
 void ItemListItem::mousePressEvent(QMouseEvent *event) {
 	TextureItem::mousePressEvent(event);
 	event->accept();
+	if (!d->interactive)
+		return;
 	ItemPos pressed;
 	if (d->orientation == Qt::Horizontal)
 		pressed = d->contains<HorizontalOrientation>(event->localPos());
@@ -426,6 +428,9 @@ void ItemListItem::mousePressEvent(QMouseEvent *event) {
 
 void ItemListItem::mouseReleaseEvent(QMouseEvent *event) {
 	TextureItem::mouseReleaseEvent(event);
+	event->accept();
+	if (!d->interactive)
+		return;
 	if (d->pressed) {
 		QRectF rect;
 		if (d->orientation == Qt::Horizontal)

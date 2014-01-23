@@ -12,6 +12,7 @@ TopLevel {
 	container.color: Theme.background
 	container.item: ItemList {
 		id: item
+		interactive: true
 		fixedItemLength: Theme.lineHeight
 		orientation: Qt.Vertical
 		width: Utility.dpToPx(220)

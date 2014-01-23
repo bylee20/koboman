@@ -15,9 +15,7 @@ struct TopLevelItem::Data {
 	qreal shade = 0.5, boundary = Theme::spacing();
 	GLuint textures[3] = { 0 };
 	GLuint &texBox = textures[0], &texShadow = textures[1], &transparent = textures[2];
-	bool redraw = false, upload = false, autohide = true, animate = true;
-	QSize textureSize{0, 0};
-	QRectF boxRect{0.0, 0.0, 0.0, 0.0};
+	bool redraw = false, autohide = true, animate = true;
 	TopLevelContainer *container = nullptr;
 	TopLevelShadow *shadow = nullptr;
 	QParallelAnimationGroup animation;
@@ -25,14 +23,6 @@ struct TopLevelItem::Data {
 	QPointF shadowOffset;
 	const ContainerImage *image = nullptr;
 	void update() { redraw = true; p->update(); }
-	void checkAnimation() {
-		const int count = animation.animationCount();
-		if (scaler.targetObject()) {
-			if (count != 2)
-				animation.addAnimation(&scaler);
-		} else if (count == 2)
-			animation.removeAnimation(&scaler);
-	}
 };
 
 TopLevelItem::TopLevelItem(QQuickItem *parent)
@@ -43,7 +33,8 @@ TopLevelItem::TopLevelItem(QQuickItem *parent)
 	d->container = new TopLevelContainer(this);
 	d->scaler.setDuration(200);
 	d->scaler.setPropertyName("scale");
-	d->scaler.setStartValue(0.0);
+	d->scaler.setStartValue(0.001);
+	d->scaler.setTargetObject(this);
 	d->scaler.setEndValue(1.0);
 	d->scaler.setEasingCurve(QEasingCurve::OutCubic);
 	d->dimmer.setDuration(d->scaler.duration());
@@ -53,6 +44,7 @@ TopLevelItem::TopLevelItem(QQuickItem *parent)
 	d->dimmer.setEndValue(1.0);
 	d->dimmer.setEasingCurve(QEasingCurve::OutCubic);
 	d->animation.addAnimation(&d->dimmer);
+	d->animation.addAnimation(&d->scaler);
 
 	setParentItem(d->root);
 	connect(d->root->window(), &QQuickWindow::widthChanged, this, &QQuickItem::setWidth);
@@ -65,9 +57,6 @@ TopLevelItem::TopLevelItem(QQuickItem *parent)
 	connect(this, &TopLevelItem::parentChanged, this, &TopLevelItem::updateParentItem);
 	connect(this, &TopLevelItem::visibleChanged, this, &TopLevelItem::updateFocusState);
 	connect(&d->animation, &QPropertyAnimation::finished, this, &TopLevelItem::handleAnimationFinished);
-	connect(d->container, &TopLevelContainer::itemChanged, [this] () {
-		d->scaler.setTargetObject(d->container->item());
-	});
 }
 
 TopLevelItem::~TopLevelItem() {
@@ -82,15 +71,8 @@ TopLevelItem::~TopLevelItem() {
 void TopLevelItem::componentComplete() {
 	TextureItem::componentComplete();
 	d->container->complete();
-	d->upload = true;
-	d->scaler.setTargetObject(d->container->item());
 	updateContainerRect();
 	d->update();
-	connect(d->container, &TopLevelContainer::repainted, [this] () {
-		updateContainerRect();
-		d->upload = true;
-		d->update();
-	});
 	connect(d->container, &TopLevelContainer::rectChanged, [this] () {
 		updateContainerRect();
 		d->update();
@@ -170,8 +152,13 @@ void TopLevelItem::bind(QOpenGLShaderProgram *prog, const QSGMaterialShader::Ren
 	prog->setUniformValue(d->loc_color_box, d->container->color());
 	prog->setUniformValue(d->loc_color_shadow, d->container->shadow()->m_color);
 	prog->setUniformValue(d->loc_shadow_offset, d->shadowOffset);
-	activateTexture(d->textureSize.isEmpty() ? d->transparent : d->texBox, 0);
-	activateTexture(d->textureSize.isEmpty() ? d->transparent : d->texShadow, 1);
+	if (d->container->isEmpty()) {
+		activateTexture(d->transparent, 0);
+		activateTexture(d->transparent, 1);
+	} else {
+		activateTexture(d->texBox, 0);
+		activateTexture(d->texShadow, 1);
+	}
 	func()->glActiveTexture(GL_TEXTURE0);
 }
 
@@ -186,56 +173,58 @@ void TopLevelItem::link(QOpenGLShaderProgram *prog) {
 }
 
 QSGGeometry *TopLevelItem::createSGGeometry() {
-	auto geometry = new QSGGeometry(QSGGeometry::defaultAttributes_TexturedPoint2D(), 6*9);//6*(4+7));
-	geometry->setDrawingMode(GL_TRIANGLES);
-	return geometry;
+	return new QSGGeometry(QSGGeometry::defaultAttributes_TexturedPoint2D(), 0);
 }
 
 void TopLevelItem::updateSGGeometry(QSGGeometry *geometry) {
-	auto adjusted = [] (const QRectF &r, qreal a, qreal dx = 1.0, qreal dy = 1.0) {
-		return r.adjusted(a*dx, a*dy, -a*dx, -a*dy);
-	};
-	const auto container = d->boxRect;
-	const auto v_out = adjusted(container, -d->image->outer()+2);
-	const auto v_in = adjusted(container, d->image->inner());
+	static const qreal big = 1e5;
+	static const QRectF bg(QPointF(-big, -big), QPointF(big, big));
+	static const QRectF texture{.0, .0, 1., 1.};
 
-	const qreal dtx = 1./d->image->width();
-	const qreal dty = 1./d->image->height();
-	const qreal w = width(), h = height();
-	const QRectF texture{.0, .0, 1., 1.};
-	const auto t_out = adjusted(texture, 2.0, dtx, dty);
-	const auto t_in = adjusted(texture, d->image->outer() + d->image->inner(), dtx, dty);
+	const auto container = d->container->rect();
+	if (container.isEmpty()) {
+		geometry->allocate(4);
+		geometry->setDrawingMode(GL_TRIANGLE_STRIP);
+		fillTexturedPointAsTriangleStrip(geometry->vertexDataAsTexturedPoint2D(), bg, texture);
+	} else {
+		geometry->allocate(6*13);
+		geometry->setDrawingMode(GL_TRIANGLES);
 
-	auto p = geometry->vertexDataAsTexturedPoint2D();
+		auto adjusted = [] (const QRectF &r, qreal a, qreal dx = 1.0, qreal dy = 1.0) {
+			return r.adjusted(a*dx, a*dy, -a*dx, -a*dy);
+		};
+		const auto v_out = adjusted(container, -d->image->outer()+2);
+		const auto v_in = adjusted(container, d->image->inner());
 
-	p = fillTexturedPointAsTriangle(p, {.0, .0}, {w, v_out.top()},  {0., 0.}, {dtx, dty});
-	p = fillTexturedPointAsTriangle(p, {.0, v_out.top()}, v_out.bottomLeft(),  {0., 0.}, {dtx, dty});
-	p = fillTexturedPointAsTriangle(p, v_out.topRight(), {w, v_out.bottom()},  {0., 0.}, {dtx, dty});
-	p = fillTexturedPointAsTriangle(p, {.0, v_out.bottom()}, {w, h},  {0., 0.}, {dtx, dty});
+		const qreal dtx = 1./d->image->width(), dty = 1./d->image->height();
+		const auto t_out = adjusted(texture, 2.0, dtx, dty);
+		const auto t_in = adjusted(texture, d->image->outer() + d->image->inner(), dtx, dty);
 
-	p = fillTexturedPointAsTriangle(p, v_out.topLeft(), v_in.topLeft(), t_out.topLeft(), t_in.topLeft());
-	p = fillTexturedPointAsTriangle(p, {v_in.left(), v_out.top()}, v_in.topRight(), {t_in.left(), t_out.top()}, t_in.topRight());
-	p = fillTexturedPointAsTriangle(p, {v_in.right(), v_out.top()}, {v_out.right(), v_in.top()}, {t_in.right(), t_out.top()}, {t_out.right(), t_in.top()});
+		auto p = geometry->vertexDataAsTexturedPoint2D();
+		p = fillTexturedPointAsTriangle(p, bg.topLeft(), {bg.right(), v_out.top()},  {0., 0.}, {dtx, dty});
+		p = fillTexturedPointAsTriangle(p, {bg.left(), v_out.top()}, v_out.bottomLeft(),  {0., 0.}, {dtx, dty});
+		p = fillTexturedPointAsTriangle(p, v_out.topRight(), {bg.right(), v_out.bottom()},  {0., 0.}, {dtx, dty});
+		p = fillTexturedPointAsTriangle(p, {bg.left(), v_out.bottom()}, bg.bottomRight(),  {0., 0.}, {dtx, dty});
 
-	p = fillTexturedPointAsTriangle(p, {v_out.left(), v_in.top()}, v_in.bottomLeft(), {t_out.left(), t_in.top()}, t_in.bottomLeft());
-	p = fillTexturedPointAsTriangle(p, v_in, t_in);
-	p = fillTexturedPointAsTriangle(p, v_in.topRight(), {v_out.right(), v_in.bottom()}, t_in.topRight(), {t_out.right(), t_in.bottom()});
+		p = fillTexturedPointAsTriangle(p, v_out.topLeft(), v_in.topLeft(), t_out.topLeft(), t_in.topLeft());
+		p = fillTexturedPointAsTriangle(p, {v_in.left(), v_out.top()}, v_in.topRight(), {t_in.left(), t_out.top()}, t_in.topRight());
+		p = fillTexturedPointAsTriangle(p, {v_in.right(), v_out.top()}, {v_out.right(), v_in.top()}, {t_in.right(), t_out.top()}, {t_out.right(), t_in.top()});
 
-	p = fillTexturedPointAsTriangle(p, {v_out.left(), v_in.bottom()}, {v_in.left(), v_out.bottom()}, {t_out.left(), t_in.bottom()}, {t_in.left(), t_out.bottom()});
-	p = fillTexturedPointAsTriangle(p, v_in.bottomLeft(), {v_in.right(), v_out.bottom()}, t_in.bottomLeft(), {t_in.right(), t_out.bottom()});
-	p = fillTexturedPointAsTriangle(p, v_in.bottomRight(), v_out.bottomRight(), t_in.bottomRight(), t_out.bottomRight());
+		p = fillTexturedPointAsTriangle(p, {v_out.left(), v_in.top()}, v_in.bottomLeft(), {t_out.left(), t_in.top()}, t_in.bottomLeft());
+		p = fillTexturedPointAsTriangle(p, v_in, t_in);
+		p = fillTexturedPointAsTriangle(p, v_in.topRight(), {v_out.right(), v_in.bottom()}, t_in.topRight(), {t_out.right(), t_in.bottom()});
 
-	d->shadowOffset = d->container->shadow()->m_offset;
-	d->shadowOffset.rx() *= dtx;
-	d->shadowOffset.ry() *= dty;
+		p = fillTexturedPointAsTriangle(p, {v_out.left(), v_in.bottom()}, {v_in.left(), v_out.bottom()}, {t_out.left(), t_in.bottom()}, {t_in.left(), t_out.bottom()});
+		p = fillTexturedPointAsTriangle(p, v_in.bottomLeft(), {v_in.right(), v_out.bottom()}, t_in.bottomLeft(), {t_in.right(), t_out.bottom()});
+		p = fillTexturedPointAsTriangle(p, v_in.bottomRight(), v_out.bottomRight(), t_in.bottomRight(), t_out.bottomRight());
+
+		d->shadowOffset = d->container->shadow()->m_offset;
+		d->shadowOffset.rx() *= dtx;
+		d->shadowOffset.ry() *= dty;
+	}
 }
 
 bool TopLevelItem::prepareToRender() {
-	if (d->upload) {
-
-		d->redraw = true;
-		d->upload = false;
-	}
 	auto ret = d->redraw;
 	d->redraw = false;
 	return ret;
@@ -282,10 +271,7 @@ void TopLevelItem::keyReleaseEvent(QKeyEvent *event) {
 }
 
 void TopLevelItem::geometryChanged(const QRectF &new_, const QRectF &old) {
-	QQuickItem::geometryChanged(new_, old);
-	if (isComponentComplete())
-		updateContainerRect();
-	setVertexRect(QRectF(x(), y(), width(), height()));
+	TextureItem::geometryChanged(new_, old);
 }
 
 qreal TopLevelItem::shade() const {
@@ -317,14 +303,8 @@ void TopLevelItem::setBoundary(qreal boundary) {
 }
 
 void TopLevelItem::updateContainerRect() {
-	if (_Change(d->boxRect, d->container->rect())) {
-		setGeometryDirty();
-		d->redraw = true;
-		update();
-	}
-//	d->trans.reset();
-//	d->trans.scale(width()/d->boxRect.width(), height()/d->boxRect.height());
-//	d->trans.translate(-d->boxRect.x()/width(), -d->boxRect.y()/height());
+	setGeometryDirty();
+	update();
 }
 
 bool TopLevelItem::autohide() const {
@@ -338,10 +318,6 @@ void TopLevelItem::setAutohide(bool autohide) {
 
 void TopLevelItem::show() {
 	if (!isVisible() && d->animate) {
-		if (d->container->item())
-			d->container->item()->setScale(0.0);
-		d->checkAnimation();
-		setOpacity(0.0);
 		setVisible(true);
 		d->animation.setDirection(QPropertyAnimation::Forward);
 		d->animation.start();
@@ -350,7 +326,6 @@ void TopLevelItem::show() {
 
 void TopLevelItem::hide() {
 	if (isVisible() && d->animate) {
-		d->checkAnimation();
 		d->animation.setDirection(QPropertyAnimation::Backward);
 		d->animation.start();
 	}

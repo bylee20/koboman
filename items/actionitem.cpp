@@ -104,6 +104,7 @@ void ActionItem::setIcon(const QUrl &url) {
 				m_imageItem = Utility::createItem("Image", this);
 				m_imageItem->setWidth(m_iconSize);
 				m_imageItem->setHeight(m_iconSize);
+				m_imageItem->setProperty("sourceSize", QSize(m_iconSize, m_iconSize));
 			}
 			m_imageItem->setProperty("source", m_icon);
 		}

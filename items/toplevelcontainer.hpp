@@ -54,15 +54,12 @@ public:
 	TopLevelContainer(TopLevelItem *item);
 	~TopLevelContainer();
 	QPointF position() const { return m_position; }
-	void setPosition(const QPointF &pos) {
-		if (_Change(m_position, pos))
-			emit positionChanged();
-	}
+	void setPosition(const QPointF &p) { if (_Change(m_position, p)) emit positionChanged(); }
 	QQuickItem *item() const { return m_item; }
 	void setItem(QQuickItem *item);
 	QQuickItem *attach() const { return m_attach; }
 	void setAttach(QQuickItem *attach);
-	QRectF rect() const;
+	QRectF rect() const { return QRectF(m_pos, m_size); }
 	TopLevelShadow *shadow() const { return m_shadow; }
 	void complete();
 	QSizeF size() const { return m_size; }
@@ -72,7 +69,6 @@ public slots:
 	void reattach();
 signals:
 	void rectChanged();
-	void repainted();
 	void positionChanged();
 	void colorChanged();
 	void itemChanged();
@@ -84,6 +80,7 @@ private slots:
 	void reposition();
 	void resize();
 private:
+	void updateTransformOrigin();
 	void connectAttach();
 	void connectItem();
 	bool m_completed = false;

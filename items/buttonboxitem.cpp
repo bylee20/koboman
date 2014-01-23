@@ -20,6 +20,7 @@ ButtonBoxItem::ButtonBoxItem(QQuickItem *parent)
 	connect(this, &ItemListItem::clicked, this, &ButtonBoxItem::handleItemClicked);
 	setVerticalAlignment(Qt::AlignVCenter);
 	setHorizontalAlignment(Qt::AlignHCenter);
+	setInteractive(true);
 }
 
 ButtonBoxItem::~ButtonBoxItem() {
