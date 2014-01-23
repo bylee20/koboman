@@ -4,25 +4,41 @@
 #include "toplevelitem.hpp"
 #include "utils.hpp"
 #include "utility.hpp"
-#include <QImage>
+
+struct ContainerImage {
+	static const ContainerImage &retain();
+	static void release();
+	int outer() const { return m_outer; }
+	int inner() const { return m_inner; }
+	QSize size() const { return m_size; }
+	int width() const { return m_size.width(); }
+	int height() const { return m_size.height(); }
+	const QByteArray &box() const { return m_box; }
+	const QByteArray &shadow() const { return m_shadow; }
+private:
+	ContainerImage() {}
+	void setup();
+	static ContainerImage *m_object;
+	static int m_ref;
+	int m_outer = 0, m_inner = 0;
+	QSize m_size;
+	QByteArray m_box, m_shadow;
+};
 
 class TopLevelShadow : public QObject {
 	Q_OBJECT
 	Q_PROPERTY(QColor color MEMBER m_color NOTIFY colorChanged FINAL)
 	Q_PROPERTY(bool visible MEMBER m_visible NOTIFY visibleChanged FINAL)
 	Q_PROPERTY(QPointF offset MEMBER m_offset NOTIFY offsetChanged FINAL)
-	Q_PROPERTY(qreal radius MEMBER m_radius NOTIFY radiusChanged FINAL)
 public:
 	TopLevelShadow(QObject *parent = nullptr): QObject(parent) { }
 	QColor m_color{0, 0, 0, 255};
 	bool m_visible = true;
 	QPointF m_offset{0, Utility::dpToPx(1)};
-	qreal m_radius = Utility::dpToPx(7);
 signals:
 	void colorChanged();
 	void visibleChanged();
 	void offsetChanged();
-	void radiusChanged();
 };
 
 class TopLevelContainer : public QObject {
@@ -34,7 +50,6 @@ class TopLevelContainer : public QObject {
 	Q_PROPERTY(QQuickItem *attach READ attach WRITE setAttach NOTIFY attachChanged FINAL)
 	Q_PROPERTY(qreal padding MEMBER m_padding NOTIFY paddingChanged FINAL)
 	Q_PROPERTY(TopLevelShadow shadow READ shadow CONSTANT FINAL)
-	Q_PROPERTY(qreal radius MEMBER m_radius NOTIFY radiusChanged FINAL)
 public:
 	TopLevelContainer(TopLevelItem *item);
 	~TopLevelContainer();
@@ -47,17 +62,16 @@ public:
 	void setItem(QQuickItem *item);
 	QQuickItem *attach() const { return m_attach; }
 	void setAttach(QQuickItem *attach);
-	QRectF paintingArea() const;
-	QRectF rect() const { return QRectF(m_pos, m_size); }
-	const QImage &image() const { return m_image; }
+	QRectF rect() const;
 	TopLevelShadow *shadow() const { return m_shadow; }
 	void complete();
 	QSizeF size() const { return m_size; }
+	QColor color() const { return m_color; }
+	bool isEmpty() const { return m_size.isEmpty(); }
 public slots:
-	void repaint();
 	void reattach();
 signals:
-	void paintingAreaChanged();
+	void rectChanged();
 	void repainted();
 	void positionChanged();
 	void colorChanged();
@@ -66,7 +80,6 @@ signals:
 	void paddingChanged();
 	void shadowChanged();
 	void sizeChanged();
-	void radiusChanged();
 private slots:
 	void reposition();
 	void resize();
@@ -77,13 +90,11 @@ private:
 	TopLevelItem *m_top = nullptr;
 	TopLevelShadow *m_shadow;
 	QSizeF m_size;
-	QPointF m_position{0.0, 0.0}, m_pos{0.0, 0.0}, m_dxy{0.0, 0.0}, m_shadowOffset{0.0, 0.0};
+	QPointF m_position, m_pos;
 	QColor m_color{255, 255, 255, 255};
 	QQuickItem *m_item = nullptr, *m_attach = nullptr;
 	Connections m_attachConnections, m_itemConnections;
-	QImage m_image;
-	qreal m_padding = 0.0, m_radius = Utility::dpToPx(2);
-	QByteArray m_imageData;
+	qreal m_padding = 0.0;
 };
 
 #endif // TOPLEVELCONTAINER_HPP

@@ -45,6 +45,8 @@ private slots:
 private:
 	void componentComplete();
 	void geometryChanged(const QRectF &new_, const QRectF &old);
+	QSGGeometry *createSGGeometry();
+	void updateSGGeometry(QSGGeometry *geometry);
 	QByteArray fragmentShader() const;
 	QByteArray vertexShader() const;
 	void bind(QOpenGLShaderProgram *prog, const RenderState &state);

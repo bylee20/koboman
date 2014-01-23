@@ -39,6 +39,29 @@ protected:
 	static void setColoredPoint(QSGGeometry::ColoredPoint2D *p, const QPointF &pos, const QColor &color) {
 		p->set(pos.x(), pos.y(), color.red(), color.green(), color.blue(), color.alpha());
 	}
+	static void setTexturedPoint(QSGGeometry::TexturedPoint2D *p, const QPointF &vpos, const QPointF &tpos) {
+		p->set(vpos.x(), vpos.y(), tpos.x(), tpos.y());
+	}
+	static QSGGeometry::TexturedPoint2D *fillTexturedPointAsTriangle(QSGGeometry::TexturedPoint2D *p, const QPointF &v1, const QPointF &v2, const QPointF &t1, const QPointF &t2) {
+		p++->set(v1.x(), v1.y(), t1.x(), t1.y());
+		p++->set(v2.x(), v1.y(), t2.x(), t1.y());
+		p++->set(v1.x(), v2.y(), t1.x(), t2.y());
+		p++->set(v1.x(), v2.y(), t1.x(), t2.y());
+		p++->set(v2.x(), v2.y(), t2.x(), t2.y());
+		p++->set(v2.x(), v1.y(), t2.x(), t1.y());
+		return p;
+	}
+	static QSGGeometry::TexturedPoint2D *fillTexturedPointAsTriangle(QSGGeometry::TexturedPoint2D *p, const QRectF &vertex, const QRectF &texture) {
+		setTexturedPoint(p++, vertex.topLeft(), texture.topLeft());
+		setTexturedPoint(p++, vertex.topRight(), texture.topRight());
+		setTexturedPoint(p++, vertex.bottomLeft(), texture.bottomLeft());
+
+		setTexturedPoint(p++, vertex.bottomLeft(), texture.bottomLeft());
+		setTexturedPoint(p++, vertex.bottomRight(), texture.bottomRight());
+		setTexturedPoint(p++, vertex.topRight(), texture.topRight());
+		return p;
+	}
+
 	static QSGGeometry::ColoredPoint2D *fillColoredPointAsTriangle(QSGGeometry::ColoredPoint2D *p, const QRectF &vertex, const QColor &color) {
 		setColoredPoint(p++, vertex.topLeft(), color);
 		setColoredPoint(p++, vertex.topRight(), color);
